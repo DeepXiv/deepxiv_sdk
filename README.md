@@ -269,10 +269,10 @@ For higher API rate limits or custom needs, contact the service provider through
 If you use this package in your research, please cite:
 
 ```bibtex
-@software{py1stauthor2024,
+@software{py1stauthor2026,
   title = {py1stauthor: A Python Package for arXiv Paper Access and Intelligent Agent Interaction},
   author = {Hongjin Qian},
-  year = {2024},
+  year = {2026},
   url = {https://github.com/qhjqhj00/py1stauthor}
 }
 ```
