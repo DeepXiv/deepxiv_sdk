@@ -57,6 +57,8 @@ pip install -e .[all]
 
 Reader 类提供对 [Agentic Data Interface API](https://data.rag.ac.cn/api/docs) 的直接访问。
 
+**注意：** 论文 `2409.05591` 和 `2504.21776` 可以无需认证进行测试。
+
 ```python
 from py1stauthor import Reader
 
@@ -64,25 +66,43 @@ from py1stauthor import Reader
 # 在此获取 token：https://data.rag.ac.cn/register
 reader = Reader(token="your_api_token")
 
-# 列出可用服务
-services = reader.list_service()
+# 或者对于免费论文（2409.05591、2504.21776），可以无需 token 初始化
+# reader = Reader()
 
-# 搜索论文
-results = reader.search("agent memory", top_k=10)
-for paper in results:
+# 使用高级选项搜索论文
+results = reader.search(
+    query="agent memory",
+    size=10,
+    search_mode="hybrid",  # 选项："bm25"、"vector"、"hybrid"
+    categories=["cs.AI", "cs.CL"]
+)
+for paper in results['results']:
     print(f"{paper['title']} - {paper['arxiv_id']}")
 
-# 获取论文元数据
-head_info = reader.head("2503.04975")
+# 获取论文元数据和结构
+head_info = reader.head("2409.05591")
 print(f"标题: {head_info['title']}")
 print(f"摘要: {head_info['abstract']}")
+print(f"章节: {head_info['sections']}")
 
 # 读取特定章节
-section_content = reader.section("2503.04975", "Introduction")
+section_content = reader.section("2409.05591", "Introduction")
 print(section_content)
 
-# 获取完整论文内容
-full_content = reader.raw("2503.04975")
+# 获取 markdown 格式的完整论文内容
+full_content = reader.raw("2409.05591")
+
+# 获取预览（前 10,000 字符）
+preview = reader.preview("2409.05591")
+print(f"预览: {preview['preview']}")
+print(f"已截断: {preview['is_truncated']}")
+
+# 获取完整 JSON 结构
+full_json = reader.json("2409.05591")
+
+# 获取 HTML 视图 URL
+html_url = reader.markdown("2409.05591")
+print(f"在浏览器中查看: {html_url}")
 ```
 
 ### 使用 Agent（智能分析）
@@ -157,13 +177,22 @@ agent = Agent(
 
 #### 方法
 
-- `list_service()`: 列出可用服务
-- `search(query, top_k=10, filters=None)`: 使用语义搜索查找论文
-- `head(arxiv_id)`: 获取论文元数据和结构（标题、作者、章节及摘要）
+- `search(query, size=10, offset=0, search_mode="hybrid", ...)`: 使用 Elasticsearch 混合搜索（BM25 + 向量）查找论文
+  - `query`: 搜索查询字符串
+  - `size`: 返回结果数量（默认：10）
+  - `offset`: 分页偏移量（默认：0）
+  - `search_mode`: "bm25"、"vector" 或 "hybrid"（默认："hybrid"）
+  - `bm25_weight`、`vector_weight`: 混合搜索权重（默认各 0.5）
+  - `categories`: 按 arXiv 分类过滤（例如：["cs.AI", "cs.CL"]）
+  - `authors`: 按作者过滤
+  - `min_citation`: 最小引用数
+  - `date_from`、`date_to`: 发表日期范围（YYYY-MM-DD）
+- `head(arxiv_id)`: 获取论文元数据和结构（标题、摘要、作者、章节、token 数、分类、发表日期）
 - `section(arxiv_id, section_name)`: 获取特定章节内容
 - `raw(arxiv_id)`: 获取 markdown 格式的完整论文内容
-- `meta(arxiv_id)`: 获取论文元数据
-- `preview(arxiv_id, max_tokens=2000)`: 获取论文预览（前 10,000 字符）
+- `preview(arxiv_id)`: 获取论文预览（前 10,000 字符）
+- `json(arxiv_id)`: 获取包含所有章节和元数据的完整结构化 JSON
+- `markdown(arxiv_id)`: 获取精美渲染的 HTML 页面 URL
 
 ### Agent
 

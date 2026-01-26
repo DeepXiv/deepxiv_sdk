@@ -57,6 +57,8 @@ pip install -e .[all]
 
 The Reader class provides direct access to the [Agentic Data Interface API](https://data.rag.ac.cn/api/docs).
 
+**Note:** Papers `2409.05591` and `2504.21776` are available for testing without authentication.
+
 ```python
 from py1stauthor import Reader
 
@@ -64,25 +66,43 @@ from py1stauthor import Reader
 # Get your token at: https://data.rag.ac.cn/register
 reader = Reader(token="your_api_token")
 
-# List available services
-services = reader.list_service()
+# Or initialize without token for free papers (2409.05591, 2504.21776)
+# reader = Reader()
 
-# Search for papers
-results = reader.search("agent memory", top_k=10)
-for paper in results:
+# Search for papers with advanced options
+results = reader.search(
+    query="agent memory",
+    size=10,
+    search_mode="hybrid",  # Options: "bm25", "vector", "hybrid"
+    categories=["cs.AI", "cs.CL"]
+)
+for paper in results['results']:
     print(f"{paper['title']} - {paper['arxiv_id']}")
 
-# Get paper metadata
-head_info = reader.head("2503.04975")
+# Get paper metadata and structure
+head_info = reader.head("2409.05591")
 print(f"Title: {head_info['title']}")
 print(f"Abstract: {head_info['abstract']}")
+print(f"Sections: {head_info['sections']}")
 
 # Read a specific section
-section_content = reader.section("2503.04975", "Introduction")
+section_content = reader.section("2409.05591", "Introduction")
 print(section_content)
 
-# Get full paper content
-full_content = reader.raw("2503.04975")
+# Get full paper content in markdown
+full_content = reader.raw("2409.05591")
+
+# Get a preview (first 10,000 characters)
+preview = reader.preview("2409.05591")
+print(f"Preview: {preview['preview']}")
+print(f"Truncated: {preview['is_truncated']}")
+
+# Get complete JSON structure
+full_json = reader.json("2409.05591")
+
+# Get URL for HTML view
+html_url = reader.markdown("2409.05591")
+print(f"View in browser: {html_url}")
 ```
 
 ### Using the Agent (Intelligent Analysis)
@@ -157,13 +177,22 @@ The `Reader` class provides direct access to the arXiv data service API.
 
 #### Methods
 
-- `list_service()`: List available services
-- `search(query, top_k=10, filters=None)`: Search for papers using semantic search
-- `head(arxiv_id)`: Get paper metadata and structure (title, authors, sections with TLDRs)
+- `search(query, size=10, offset=0, search_mode="hybrid", ...)`: Search for papers using Elasticsearch hybrid search (BM25 + Vector)
+  - `query`: Search query string
+  - `size`: Number of results (default: 10)
+  - `offset`: Pagination offset (default: 0)
+  - `search_mode`: "bm25", "vector", or "hybrid" (default: "hybrid")
+  - `bm25_weight`, `vector_weight`: Weights for hybrid search (default: 0.5 each)
+  - `categories`: Filter by arXiv categories (e.g., ["cs.AI", "cs.CL"])
+  - `authors`: Filter by authors
+  - `min_citation`: Minimum citation count
+  - `date_from`, `date_to`: Publication date range (YYYY-MM-DD)
+- `head(arxiv_id)`: Get paper metadata and structure (title, abstract, authors, sections, token_count, categories, publish_at)
 - `section(arxiv_id, section_name)`: Get a specific section content
 - `raw(arxiv_id)`: Get full paper content in markdown
-- `meta(arxiv_id)`: Get paper metadata
-- `preview(arxiv_id, max_tokens=2000)`: Get a preview of the paper (first 10,000 characters)
+- `preview(arxiv_id)`: Get a preview of the paper (first 10,000 characters)
+- `json(arxiv_id)`: Get complete structured JSON with all sections and metadata
+- `markdown(arxiv_id)`: Get URL for beautifully rendered HTML page
 
 ### Agent
 

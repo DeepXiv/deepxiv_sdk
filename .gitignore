@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+test_func.py
 # C extensions
 *.so
 # Distribution / packaging
