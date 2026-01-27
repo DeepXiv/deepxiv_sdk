@@ -17,6 +17,9 @@ A Python package for accessing arXiv papers and intelligent agent interaction us
 - 💬 **Streaming Support**: Real-time streaming of LLM responses
 - 📊 **Process Logging**: Detailed logging of reasoning and tool calls
 
+## Demo
+
+[![Watch the demo video](https://img.youtube.com/vi/L5Qn8kalaYk/0.jpg)](https://www.youtube.com/watch?v=L5Qn8kalaYk)
 ## Installation
 
 ### Prerequisites
