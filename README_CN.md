@@ -260,7 +260,6 @@ streamlit run streamlit_app.py
 - ✅ **论文追踪**：查看所有已加载的论文及其元数据
 - ✅ **过程可视化**：可折叠的推理步骤视图
 
-详细文档请参见 [STREAMLIT_GUIDE.md](STREAMLIT_GUIDE.md)。
 
 ## 示例
 

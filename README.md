@@ -261,7 +261,6 @@ streamlit run streamlit_app.py
 - ✅ **Paper Tracking**: View all loaded papers and their metadata
 - ✅ **Process Visualization**: Collapsible view of reasoning steps
 
-See [STREAMLIT_GUIDE.md](STREAMLIT_GUIDE.md) for detailed documentation.
 
 ## Examples
 
