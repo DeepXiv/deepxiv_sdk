@@ -17,9 +17,6 @@ A Python package for accessing arXiv papers and intelligent agent interaction us
 - 💬 **Streaming Support**: Real-time streaming of LLM responses
 - 📊 **Process Logging**: Detailed logging of reasoning and tool calls
 
-## Demo
-
-[![Watch the demo video](https://img.youtube.com/vi/L5Qn8kalaYk/0.jpg)](https://www.youtube.com/watch?v=L5Qn8kalaYk)
 ## Installation
 
 ### Prerequisites
@@ -168,6 +165,20 @@ agent = Agent(
 )
 ```
 
+## Streamlit Web Interface
+
+Try the interactive web interface to visualize the agent's reasoning process in real-time!
+[![Watch the demo video](https://img.youtube.com/vi/L5Qn8kalaYk/0.jpg)](https://www.youtube.com/watch?v=L5Qn8kalaYk)
+### Quick Start
+
+```bash
+# Install Streamlit
+pip install streamlit
+
+# Or run the full version (complete chat interface)
+streamlit run streamlit_app.py
+```
+
 ## API Reference
 
 ### Reader
@@ -242,19 +253,7 @@ The agent uses the ReAct (Reasoning + Acting) pattern to:
 4. Repeat until sufficient information is gathered
 5. Provide a comprehensive answer
 
-## Streamlit Web Interface
 
-Try the interactive web interface to visualize the agent's reasoning process in real-time!
-
-### Quick Start
-
-```bash
-# Install Streamlit
-pip install streamlit
-
-# Or run the full version (complete chat interface)
-streamlit run streamlit_app.py
-```
 
 ### Features
 
