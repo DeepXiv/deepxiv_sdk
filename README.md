@@ -222,11 +222,15 @@ The `Agent` class implements a ReAct-based intelligent agent for paper analysis.
 
 The agent has access to the following tools:
 
-1. **search_papers**: Search for papers using a query
-2. **load_paper**: Load a paper's metadata and structure
+1. **search_papers**: Search for papers using Elasticsearch hybrid search (BM25 + Vector)
+   - Supports multiple search modes: BM25 (keyword), Vector (semantic), Hybrid (combined)
+   - Advanced filtering by categories, authors, citation count, and publication dates
+   - Customizable weights for hybrid search
+   - Pagination support for large result sets
+2. **load_paper**: Load a paper's metadata and structure (must be called before reading sections)
 3. **read_section**: Read a specific section from a loaded paper
-4. **get_full_paper**: Get the complete paper content
-5. **get_paper_preview**: Get a preview with limited tokens
+4. **get_full_paper**: Get the complete paper content in markdown format
+5. **get_paper_preview**: Get a preview with limited tokens for quick overview
 
 The agent uses the ReAct (Reasoning + Acting) pattern to:
 1. Think about what information is needed
@@ -234,6 +238,37 @@ The agent uses the ReAct (Reasoning + Acting) pattern to:
 3. Observe the results
 4. Repeat until sufficient information is gathered
 5. Provide a comprehensive answer
+
+## Streamlit Web Interface
+
+Try the interactive web interface to visualize the agent's reasoning process in real-time!
+
+### Quick Start
+
+```bash
+# Install Streamlit
+pip install streamlit
+
+# Run the simple version (recommended for demos)
+streamlit run simple_app.py
+
+# Or run the full version (complete chat interface)
+streamlit run streamlit_app.py
+
+# Or use the launcher script
+./run_app.sh  # Linux/Mac
+run_app.bat   # Windows
+```
+
+### Features
+
+- ✅ **Real-time Output**: See the agent's thinking process as it happens
+- ✅ **Interactive Chat**: Multi-turn conversations with context
+- ✅ **Configuration UI**: Easy API token and model selection
+- ✅ **Paper Tracking**: View all loaded papers and their metadata
+- ✅ **Process Visualization**: Collapsible view of reasoning steps
+
+See [STREAMLIT_GUIDE.md](STREAMLIT_GUIDE.md) for detailed documentation.
 
 ## Examples
 

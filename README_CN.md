@@ -222,11 +222,15 @@ agent = Agent(
 
 Agent 可以访问以下工具：
 
-1. **search_papers**: 使用查询搜索论文
-2. **load_paper**: 加载论文的元数据和结构
+1. **search_papers**: 使用 Elasticsearch 混合搜索（BM25 + 向量）搜索论文
+   - 支持多种搜索模式：BM25（关键词）、Vector（语义）、Hybrid（混合）
+   - 按分类、作者、引用数和发表日期高级过滤
+   - 混合搜索可自定义权重
+   - 支持大结果集分页
+2. **load_paper**: 加载论文的元数据和结构（读取章节前必须调用）
 3. **read_section**: 从已加载的论文中读取特定章节
-4. **get_full_paper**: 获取完整的论文内容
-5. **get_paper_preview**: 获取有限 token 的预览
+4. **get_full_paper**: 获取 markdown 格式的完整论文内容
+5. **get_paper_preview**: 获取有限 token 的预览，快速了解论文概要
 
 Agent 使用 ReAct（推理 + 行动）模式：
 1. 思考需要什么信息
@@ -234,6 +238,37 @@ Agent 使用 ReAct（推理 + 行动）模式：
 3. 观察结果
 4. 重复直到收集到足够的信息
 5. 提供全面的答案
+
+## Streamlit 网页界面
+
+试试交互式网页界面，实时可视化 Agent 的推理过程！
+
+### 快速开始
+
+```bash
+# 安装 Streamlit
+pip install streamlit
+
+# 运行简单版本（推荐用于演示）
+streamlit run simple_app.py
+
+# 或运行完整版本（完整的聊天界面）
+streamlit run streamlit_app.py
+
+# 或使用启动脚本
+./run_app.sh  # Linux/Mac
+run_app.bat   # Windows
+```
+
+### 功能特点
+
+- ✅ **实时输出**：实时查看 Agent 的思考过程
+- ✅ **交互式对话**：支持多轮对话和上下文
+- ✅ **配置界面**：简单的 API token 和模型选择
+- ✅ **论文追踪**：查看所有已加载的论文及其元数据
+- ✅ **过程可视化**：可折叠的推理步骤视图
+
+详细文档请参见 [STREAMLIT_GUIDE.md](STREAMLIT_GUIDE.md)。
 
 ## 示例
 

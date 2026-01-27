@@ -17,7 +17,7 @@ def get_tools_definition() -> List[Dict]:
             "type": "function",
             "function": {
                 "name": "search_papers",
-                "description": "Search for papers using a query. Use this to find relevant papers on a topic. Returns a list of papers with their arXiv IDs, titles, and abstracts.",
+                "description": "Search for papers using Elasticsearch hybrid search (BM25 + Vector). Supports multiple search modes and advanced filtering by categories, authors, citations, and publication dates. Returns a list of papers with their arXiv IDs, titles, abstracts, authors, categories, and citation counts.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -25,10 +25,48 @@ def get_tools_definition() -> List[Dict]:
                             "type": "string",
                             "description": "The search query (e.g., 'agent memory', 'transformer models')"
                         },
-                        "top_k": {
+                        "size": {
                             "type": "integer",
-                            "description": "Number of results to return (default: 10)",
+                            "description": "Number of results to return (default: 10, max: 100)",
                             "default": 10
+                        },
+                        "offset": {
+                            "type": "integer",
+                            "description": "Result offset for pagination (default: 0)",
+                            "default": 0
+                        },
+                        "search_mode": {
+                            "type": "string",
+                            "enum": ["bm25", "vector", "hybrid"],
+                            "description": "Search mode: 'bm25' for keyword matching, 'vector' for semantic search, 'hybrid' for combined (default: 'hybrid')",
+                            "default": "hybrid"
+                        },
+                        "bm25_weight": {
+                            "type": "number",
+                            "description": "BM25 weight for hybrid search (default: 0.5, range: 0-1)",
+                            "default": 0.5
+                        },
+                        "vector_weight": {
+                            "type": "number",
+                            "description": "Vector weight for hybrid search (default: 0.5, range: 0-1)",
+                            "default": 0.5
+                        },
+                        "authors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Filter by author names (e.g., ['John Doe'])"
+                        },
+                        "min_citation": {
+                            "type": "integer",
+                            "description": "Minimum citation count filter"
+                        },
+                        "date_from": {
+                            "type": "string",
+                            "description": "Publication date from (format: YYYY-MM-DD)"
+                        },
+                        "date_to": {
+                            "type": "string",
+                            "description": "Publication date to (format: YYYY-MM-DD)"
                         }
                     },
                     "required": ["query"]
@@ -101,11 +139,6 @@ def get_tools_definition() -> List[Dict]:
                         "arxiv_id": {
                             "type": "string",
                             "description": "The arXiv ID of the paper (e.g., '2503.04975')"
-                        },
-                        "max_tokens": {
-                            "type": "integer",
-                            "description": "Maximum tokens to return (default: 2000)",
-                            "default": 2000
                         }
                     },
                     "required": ["arxiv_id"]
@@ -130,21 +163,60 @@ class ToolExecutor:
     def search_papers(
         self, 
         query: str, 
-        top_k: int = 10,
+        size: int = 10,
+        offset: int = 0,
+        search_mode: str = "hybrid",
+        bm25_weight: float = 0.5,
+        vector_weight: float = 0.5,
+        authors: Optional[List[str]] = None,
+        min_citation: Optional[int] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
         state_cache: Dict = None
     ) -> str:
         """
-        Search for papers.
+        Search for papers with advanced filtering.
         
         Args:
             query: Search query
-            top_k: Number of results
+            size: Number of results to return
+            offset: Result offset for pagination
+            search_mode: Search mode ('bm25', 'vector', or 'hybrid')
+            bm25_weight: BM25 weight for hybrid search
+            vector_weight: Vector weight for hybrid search
+            authors: Filter by author names
+            min_citation: Minimum citation count
+            date_from: Publication date from (YYYY-MM-DD)
+            date_to: Publication date to (YYYY-MM-DD)
             state_cache: State cache for storing results
             
         Returns:
             Formatted search results
         """
-        results = self.reader.search(query, top_k=top_k)
+        # Build search parameters
+        search_params = {
+            "size": size,
+            "offset": offset,
+            "search_mode": search_mode,
+        }
+        
+        # Add hybrid search weights if applicable
+        if search_mode == "hybrid":
+            search_params["bm25_weight"] = bm25_weight
+            search_params["vector_weight"] = vector_weight
+        
+        # Add optional filters
+        if authors:
+            search_params["authors"] = authors
+        if min_citation is not None:
+            search_params["min_citation"] = min_citation
+        if date_from:
+            search_params["date_from"] = date_from
+        if date_to:
+            search_params["date_to"] = date_to
+        
+        # Execute search
+        results = self.reader.search(query=query, **search_params)
         
         if not results:
             return f"Error: Failed to search for papers with query '{query}'."
@@ -154,15 +226,49 @@ class ToolExecutor:
             state_cache["search_results"] = results
         
         # Format results
-        output = [f"=== Search Results for '{query}' ({len(results)} papers) ===\n"]
+        total = results.get("total", 0) if isinstance(results, dict) else len(results)
+        result_list = results.get("results", results) if isinstance(results, dict) else results
         
-        for i, paper in enumerate(results, 1):
+        output = [f"=== Search Results for '{query}' ==="]
+        output.append(f"Total: {total} papers found | Showing: {len(result_list)} results")
+        output.append(f"Mode: {search_mode.upper()}")
+        
+        # Show active filters
+        filters = []
+        if authors:
+            # Handle authors as both list and str
+            auth_str = ', '.join(authors) if isinstance(authors, list) else str(authors)
+            filters.append(f"Authors: {auth_str}")
+        if min_citation is not None:
+            filters.append(f"Min Citations: {min_citation}")
+        if date_from or date_to:
+            date_range = f"{date_from or '*'} to {date_to or '*'}"
+            filters.append(f"Date Range: {date_range}")
+        
+        if filters:
+            output.append(f"Filters: {' | '.join(filters)}")
+        
+        output.append("")
+        
+        for i, paper in enumerate(result_list, offset + 1):
             arxiv_id = paper.get("arxiv_id", "Unknown")
             title = paper.get("title", "No title")
             abstract = paper.get("abstract", "No abstract")[:300]
+            score = paper.get("score", 0)
+            citation = paper.get("citation", 0)
+            paper_categories = paper.get("categories", [])
             
             output.append(f"{i}. {title}")
-            output.append(f"   arXiv ID: {arxiv_id}")
+            output.append(f"   arXiv ID: {arxiv_id} | Score: {score:.3f} | Citations: {citation}")
+            
+            if paper_categories:
+                # Handle categories as both list and str
+                if isinstance(paper_categories, list):
+                    categories_str = ', '.join(paper_categories[:3])
+                else:
+                    categories_str = str(paper_categories)
+                output.append(f"   Categories: {categories_str}")
+            
             output.append(f"   Abstract: {abstract}...")
             output.append("")
         
@@ -194,15 +300,15 @@ class ToolExecutor:
         if not head_info:
             return f"Error: Failed to load paper {arxiv_id}."
         
-        # Store in state
+        # Store in state (handle None values)
         state_papers[arxiv_id] = {
             "arxiv_id": arxiv_id,
             "title": head_info.get("title", ""),
             "abstract": head_info.get("abstract", ""),
-            "authors": head_info.get("authors", []),
-            "sections": head_info.get("sections", {}),
+            "authors": head_info.get("authors") or [],
+            "sections": head_info.get("sections") or {},
             "token_count": head_info.get("token_count", 0),
-            "categories": head_info.get("categories", []),
+            "categories": head_info.get("categories") or [],
             "publish_at": head_info.get("publish_at", ""),
             "loaded_sections": {}
         }
@@ -211,29 +317,54 @@ class ToolExecutor:
         paper = state_papers[arxiv_id]
         output = [f"=== Paper Loaded: {arxiv_id} ===\n"]
         output.append(f"Title: {paper['title']}")
-        output.append(f"\nAuthors ({len(paper['authors'])} total):")
-        for i, author in enumerate(paper['authors'][:5], 1):
-            name = author.get('name', 'Unknown')
-            orgs = author.get('orgs', [])
-            orgs_str = ', '.join(orgs) if orgs else 'N/A'
-            output.append(f"  {i}. {name} ({orgs_str})")
         
-        if len(paper['authors']) > 5:
-            output.append(f"  ... and {len(paper['authors']) - 5} more authors")
+        # Handle authors - could be list of dicts, list of strings, or a single string
+        authors = paper['authors']
+        if isinstance(authors, str):
+            # Split comma-separated string into list
+            authors = [a.strip() for a in authors.split(',') if a.strip()]
         
-        output.append(f"\nCategories: {', '.join(paper['categories'])}")
+        output.append(f"\nAuthors ({len(authors)} total):")
+        for i, author in enumerate(authors[:5], 1):
+            # Handle both dict and str formats
+            if isinstance(author, dict):
+                name = author.get('name', 'Unknown')
+                orgs = author.get('orgs', [])
+                # Handle orgs as both list and str
+                if isinstance(orgs, list):
+                    orgs_str = ', '.join(orgs) if orgs else 'N/A'
+                else:
+                    orgs_str = str(orgs) if orgs else 'N/A'
+                output.append(f"  {i}. {name} ({orgs_str})")
+            else:
+                # author is a string
+                output.append(f"  {i}. {author}")
+        
+        if len(authors) > 5:
+            output.append(f"  ... and {len(authors) - 5} more authors")
+        
+        # Handle categories as both list and str
+        categories = paper['categories']
+        if isinstance(categories, list):
+            categories_str = ', '.join(categories) if categories else 'N/A'
+        else:
+            categories_str = str(categories) if categories else 'N/A'
+        output.append(f"\nCategories: {categories_str}")
         output.append(f"Published: {paper.get('publish_at', 'N/A')}")
         output.append(f"\nAbstract:\n{paper['abstract']}\n")
         
         # Show section TLDRs
-        output.append("Available Sections (with TLDRs):")
-        sections = paper.get("sections", {})
-        sorted_sections = sorted(sections.items(), key=lambda x: x[1].get("idx", 999))
-        for section_name, section_info in sorted_sections:
-            tldr = section_info.get('tldr', 'N/A')
-            tokens = section_info.get('token_count', 0)
-            output.append(f"  - {section_name} ({tokens} tokens):")
-            output.append(f"    {tldr}")
+        sections = paper.get("sections") or {}
+        if sections:
+            output.append("Available Sections (with TLDRs):")
+            sorted_sections = sorted(sections.items(), key=lambda x: x[1].get("idx", 999))
+            for section_name, section_info in sorted_sections:
+                tldr = section_info.get('tldr', 'N/A')
+                tokens = section_info.get('token_count', 0)
+                output.append(f"  - {section_name} ({tokens} tokens):")
+                output.append(f"    {tldr}")
+        else:
+            output.append("Note: Section information not available for this paper.")
         
         output.append(f"\nTotal paper tokens: {paper['token_count']}")
         
@@ -264,9 +395,14 @@ class ToolExecutor:
         
         paper = state_papers[arxiv_id]
         
+        # Check if sections are available
+        sections = paper.get("sections") or {}
+        if not sections:
+            return f"Error: Section information is not available for paper {arxiv_id}. This paper may not have structured sections."
+        
         # Check if section exists
-        if section_name not in paper["sections"]:
-            available = ", ".join(paper["sections"].keys())
+        if section_name not in sections:
+            available = ", ".join(sections.keys())
             return f"Error: Section '{section_name}' not found in paper {arxiv_id}. Available sections: {available}"
         
         # Check cache
@@ -330,7 +466,6 @@ class ToolExecutor:
     def get_paper_preview(
         self, 
         arxiv_id: str, 
-        max_tokens: int = 2000
     ) -> str:
         """
         Get a preview of the paper.
@@ -342,7 +477,7 @@ class ToolExecutor:
         Returns:
             Paper preview or error message
         """
-        preview = self.reader.preview(arxiv_id, max_tokens=max_tokens)
+        preview = self.reader.preview(arxiv_id)
         
         if not preview:
             return f"Error: Failed to fetch preview for {arxiv_id}."
@@ -373,8 +508,29 @@ class ToolExecutor:
         try:
             if tool_name == "search_papers":
                 query = tool_args.get("query", "")
-                top_k = tool_args.get("top_k", 10)
-                return self.search_papers(query, top_k, state)
+                size = tool_args.get("size", 10)
+                offset = tool_args.get("offset", 0)
+                search_mode = tool_args.get("search_mode", "hybrid")
+                bm25_weight = tool_args.get("bm25_weight", 0.5)
+                vector_weight = tool_args.get("vector_weight", 0.5)
+                authors = tool_args.get("authors")
+                min_citation = tool_args.get("min_citation")
+                date_from = tool_args.get("date_from")
+                date_to = tool_args.get("date_to")
+                
+                return self.search_papers(
+                    query=query,
+                    size=size,
+                    offset=offset,
+                    search_mode=search_mode,
+                    bm25_weight=bm25_weight,
+                    vector_weight=vector_weight,
+                    authors=authors,
+                    min_citation=min_citation,
+                    date_from=date_from,
+                    date_to=date_to,
+                    state_cache=state
+                )
             
             elif tool_name == "load_paper":
                 arxiv_id = tool_args.get("arxiv_id", "")
@@ -400,8 +556,7 @@ class ToolExecutor:
             
             elif tool_name == "get_paper_preview":
                 arxiv_id = tool_args.get("arxiv_id", "")
-                max_tokens = tool_args.get("max_tokens", 2000)
-                return self.get_paper_preview(arxiv_id, max_tokens)
+                return self.get_paper_preview(arxiv_id)
             
             else:
                 return f"Error: Unknown tool '{tool_name}'"
