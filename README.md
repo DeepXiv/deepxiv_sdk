@@ -249,15 +249,8 @@ Try the interactive web interface to visualize the agent's reasoning process in 
 # Install Streamlit
 pip install streamlit
 
-# Run the simple version (recommended for demos)
-streamlit run simple_app.py
-
 # Or run the full version (complete chat interface)
 streamlit run streamlit_app.py
-
-# Or use the launcher script
-./run_app.sh  # Linux/Mac
-run_app.bat   # Windows
 ```
 
 ### Features

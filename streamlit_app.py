@@ -4,6 +4,8 @@ import os
 from io import StringIO
 from datetime import datetime
 from py1stauthor import Reader, Agent
+from dotenv import load_dotenv
+load_dotenv()
 
 # 多语言文本
 TEXTS = {

@@ -249,15 +249,7 @@ Agent 使用 ReAct（推理 + 行动）模式：
 # 安装 Streamlit
 pip install streamlit
 
-# 运行简单版本（推荐用于演示）
-streamlit run simple_app.py
-
-# 或运行完整版本（完整的聊天界面）
 streamlit run streamlit_app.py
-
-# 或使用启动脚本
-./run_app.sh  # Linux/Mac
-run_app.bat   # Windows
 ```
 
 ### 功能特点
