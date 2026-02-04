@@ -1,5 +1,5 @@
 """
-py1stauthor - A Python package for arXiv paper access and intelligent agent interaction.
+deepxiv-sdk - A Python package for arXiv paper access with CLI and MCP server support.
 """
 
 __version__ = "0.1.0"

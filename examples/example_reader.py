@@ -1,7 +1,7 @@
 """
 Basic example of using the Reader class to access arXiv papers.
 """
-from py1stauthor import Reader
+from deepxiv_sdk import Reader
 
 
 def main():

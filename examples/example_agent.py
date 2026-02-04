@@ -2,7 +2,7 @@
 Example of using the Agent class for intelligent paper analysis.
 """
 import os
-from py1stauthor import Reader, Agent
+from deepxiv_sdk import Reader, Agent
 
 
 def main():

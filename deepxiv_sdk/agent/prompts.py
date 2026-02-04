@@ -7,11 +7,11 @@ from typing import Dict
 def get_system_prompt(paper_context: str = "", current_date: str = "") -> str:
     """
     Get the system prompt for the agent.
-    
+
     Args:
         paper_context: Context about loaded papers
         current_date: Current date string
-        
+
     Returns:
         System prompt string
     """
@@ -78,7 +78,7 @@ When you're ready to provide the final answer, wrap it in <answer></answer> tags
 
 ### 📊 Example Token Budget Thinking
 
-**Good**: 
+**Good**:
 - Q: "What is this paper about?" → Use title + abstract from metadata (0 extra tokens)
 - Q: "What's the method?" → Check method section TLDR first, load section only if insufficient
 
@@ -129,5 +129,5 @@ Why this matters...
 {paper_context}
 
 Now, help the user with their question."""
-    
+
     return base_prompt

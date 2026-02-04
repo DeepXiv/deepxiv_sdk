@@ -14,9 +14,9 @@ from .state import AgentState
 class Agent:
     """
     Intelligent agent for interacting with arXiv papers using ReAct framework.
-    
+
     Example:
-        >>> from py1stauthor import Reader, Agent
+        >>> from deepxiv_sdk import Reader, Agent
         >>> reader = Reader(token="your_token")
         >>> agent = Agent(
         ...     api_key="your_api_key",
@@ -26,7 +26,7 @@ class Agent:
         ... )
         >>> answer = agent.query("What are the latest papers about agent memory?")
     """
-    
+
     def __init__(
         self,
         api_key: str,
@@ -42,7 +42,7 @@ class Agent:
     ):
         """
         Initialize the Agent.
-        
+
         Args:
             api_key: API key for the LLM provider
             reader: Reader instance for API access
@@ -64,30 +64,30 @@ class Agent:
         self.temperature = temperature
         self.print_process = print_process
         self.stream = stream
-        
+
         # Initialize OpenAI client
         if base_url:
             self.client = OpenAI(api_key=api_key, base_url=base_url)
         else:
             self.client = OpenAI(api_key=api_key)
-        
+
         # Initialize tool executor
         self.tool_executor = ToolExecutor(reader)
-        
+
         # Create graph
         self.graph = create_react_graph()
-        
+
         # State for persistent papers across queries
         self.persistent_papers: Dict = {}
-    
+
     def query(self, question: str, reset_papers: bool = False) -> str:
         """
         Query the agent with a question.
-        
+
         Args:
             question: The question to ask
             reset_papers: Whether to reset loaded papers (default: False)
-            
+
         Returns:
             The answer string
         """
@@ -95,17 +95,17 @@ class Agent:
             print(f"\n{'='*80}")
             print(f"🤔 Question: {question}")
             print(f"{'='*80}\n")
-        
+
         # Reset papers if requested
         if reset_papers:
             self.persistent_papers = {}
-        
+
         # Create initial state
         state = create_initial_state(papers=self.persistent_papers.copy())
         state["question"] = question
         state["num_llm_calls_available"] = self.max_llm_calls
         state["start_time"] = time.time()
-        
+
         # Prepare config
         config = {
             "configurable": {
@@ -121,55 +121,55 @@ class Agent:
             },
             "recursion_limit": 100
         }
-        
+
         # Run graph
         try:
             final_state = self.graph.invoke(state, config)
-            
+
             # Update persistent papers
             self.persistent_papers.update(final_state.get("papers", {}))
-            
+
             prediction = final_state.get("prediction", "No answer found.")
             termination = final_state.get("termination", "unknown")
-            
+
             if self.print_process:
                 print(f"\n{'='*80}")
                 print(f"✅ Completed: {termination}")
                 print(f"📊 Rounds: {final_state.get('round', 0)}")
                 print(f"📄 Papers loaded: {len(self.persistent_papers)}")
                 print(f"{'='*80}\n")
-            
+
             return prediction
-        
+
         except Exception as e:
             if self.print_process:
                 print(f"\n❌ Error: {e}")
                 import traceback
                 traceback.print_exc()
             return f"Error: {e}"
-    
+
     def get_loaded_papers(self) -> Dict:
         """
         Get information about currently loaded papers.
-        
+
         Returns:
             Dictionary of loaded papers
         """
         return self.persistent_papers
-    
+
     def reset_papers(self):
         """Reset all loaded papers."""
         self.persistent_papers = {}
         if self.print_process:
             print("🔄 Papers reset.")
-    
+
     def add_paper(self, arxiv_id: str) -> bool:
         """
         Manually add a paper to the context.
-        
+
         Args:
             arxiv_id: arXiv ID to load
-            
+
         Returns:
             True if successful
         """
@@ -177,13 +177,13 @@ class Agent:
             if self.print_process:
                 print(f"Paper {arxiv_id} already loaded.")
             return True
-        
+
         head_info = self.reader.head(arxiv_id)
         if not head_info:
             if self.print_process:
                 print(f"Failed to load paper {arxiv_id}.")
             return False
-        
+
         self.persistent_papers[arxiv_id] = {
             "arxiv_id": arxiv_id,
             "title": head_info.get("title", ""),
@@ -195,8 +195,8 @@ class Agent:
             "publish_at": head_info.get("publish_at", ""),
             "loaded_sections": {}
         }
-        
+
         if self.print_process:
             print(f"✅ Loaded paper {arxiv_id}: {head_info.get('title', '')}")
-        
+
         return True

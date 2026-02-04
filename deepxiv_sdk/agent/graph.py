@@ -26,7 +26,7 @@ def call_llm(
 ) -> tuple[str, Optional[List]]:
     """
     Call LLM with retry logic.
-    
+
     Args:
         messages: List of messages
         client: OpenAI client instance
@@ -37,18 +37,18 @@ def call_llm(
         temperature: Sampling temperature
         stream: Whether to use streaming output
         print_process: Whether to print the process
-        
+
     Returns:
         Tuple of (content, tool_calls)
     """
     import random
-    
+
     base_sleep_time = 1
     for attempt in range(max_tries):
         try:
             if print_process:
                 print(f"--- Calling LLM, attempt {attempt + 1}/{max_tries} ---")
-            
+
             # Prepare request parameters
             request_params = {
                 "model": model_name,
@@ -57,33 +57,33 @@ def call_llm(
                 "temperature": temperature,
                 "stream": stream,
             }
-            
+
             # Add tools if provided
             if tools:
                 request_params["tools"] = tools
                 request_params["tool_choice"] = "auto"
-            
+
             if stream:
                 # Streaming mode
                 if print_process:
                     print("--- LLM streaming started ---")
-                
+
                 response_stream = client.chat.completions.create(**request_params)
-                
+
                 content = ""
                 tool_calls = None
                 tool_calls_dict = {}
-                
+
                 for chunk in response_stream:
                     if hasattr(chunk.choices[0], 'delta'):
                         delta = chunk.choices[0].delta
-                        
+
                         # Handle regular content
                         if hasattr(delta, 'content') and delta.content:
                             content += delta.content
                             if print_process:
                                 print(delta.content, end='', flush=True)
-                        
+
                         # Handle tool calls (streaming)
                         if hasattr(delta, 'tool_calls') and delta.tool_calls:
                             for tc in delta.tool_calls:
@@ -97,20 +97,20 @@ def call_llm(
                                             'arguments': ''
                                         }
                                     }
-                                
+
                                 if hasattr(tc, 'function'):
                                     if tc.function.name:
                                         tool_calls_dict[idx]['function']['name'] = tc.function.name
                                     if tc.function.arguments:
                                         tool_calls_dict[idx]['function']['arguments'] += tc.function.arguments
-                
+
                 if print_process and content:
                     print()  # New line after streaming
-                
+
                 # Convert tool_calls_dict to list
                 if tool_calls_dict:
                     tool_calls = [tool_calls_dict[i] for i in sorted(tool_calls_dict.keys())]
-                
+
                 if content and content.strip():
                     if print_process:
                         print("--- LLM streaming completed successfully ---")
@@ -125,11 +125,11 @@ def call_llm(
             else:
                 # Non-streaming mode
                 response = client.chat.completions.create(**request_params)
-                
+
                 message = response.choices[0].message
                 content = message.content or ""
                 tool_calls = None
-                
+
                 # Check for tool calls
                 if hasattr(message, 'tool_calls') and message.tool_calls:
                     tool_calls = [
@@ -143,7 +143,7 @@ def call_llm(
                         }
                         for tc in message.tool_calls
                     ]
-                
+
                 if content and content.strip():
                     if print_process:
                         print("--- LLM call successful ---")
@@ -177,10 +177,10 @@ def call_llm(
 def planning_node(state: AgentState, config: RunnableConfig) -> AgentState:
     """Planning node - calls LLM to reason and decide actions."""
     configurable = config.get("configurable", {})
-    
+
     max_time_seconds = configurable.get("max_time_seconds", 600)
     print_process = configurable.get("print_process", False)
-    
+
     # Check time limit
     if time.time() - state["start_time"] > max_time_seconds:
         return {
@@ -188,7 +188,7 @@ def planning_node(state: AgentState, config: RunnableConfig) -> AgentState:
             "termination": "timeout",
             "status": state["status"] + ["timeout"]
         }
-    
+
     # Check LLM call limit
     if state["num_llm_calls_available"] <= 0:
         return {
@@ -196,17 +196,17 @@ def planning_node(state: AgentState, config: RunnableConfig) -> AgentState:
             "termination": "exceeded_calls",
             "status": state["status"] + ["exceeded_calls"]
         }
-    
+
     # Get messages
     messages = state.get("messages", [])
-    
+
     # Initialize messages if empty
     if not messages:
         # Build system prompt with paper context
         paper_context = format_paper_context(state["papers"])
         current_date = time.strftime("%Y-%m-%d")
         system_content = get_system_prompt(paper_context, current_date)
-        
+
         initial_messages = [
             {"role": "system", "content": system_content},
             {"role": "user", "content": state["question"]}
@@ -216,17 +216,17 @@ def planning_node(state: AgentState, config: RunnableConfig) -> AgentState:
     else:
         messages_to_add = []
         all_messages = messages
-    
+
     # Get tools
     tools = get_tools_definition()
-    
+
     # Get LLM config
     client = configurable.get("client")
     model_name = configurable.get("model_name", "gpt-4")
     max_tokens = configurable.get("max_tokens", 4096)
     temperature = configurable.get("temperature", 0.7)
     stream = configurable.get("stream", False)
-    
+
     # Call LLM
     content, tool_calls = call_llm(
         messages=all_messages,
@@ -238,20 +238,20 @@ def planning_node(state: AgentState, config: RunnableConfig) -> AgentState:
         stream=stream,
         print_process=print_process
     )
-    
+
     if print_process:
         print(f"\n{'='*80}")
         print(f"Round {state['round'] + 1}")
         print(f"Response length: {len(content)} chars")
         print(f"Tool calls: {len(tool_calls) if tool_calls else 0}")
         print(f"{'='*80}\n")
-    
+
     # Add assistant message
     assistant_message = {"role": "assistant", "content": content.strip()}
     if tool_calls:
         assistant_message["tool_calls"] = tool_calls
     messages_to_add.append(assistant_message)
-    
+
     # Determine status
     new_status = state["status"].copy()
     if tool_calls:
@@ -266,7 +266,7 @@ def planning_node(state: AgentState, config: RunnableConfig) -> AgentState:
             new_status.append("answer")
         else:
             new_status.append("continue")
-    
+
     return {
         "messages": messages_to_add,
         "response": content.strip(),
@@ -281,7 +281,7 @@ def tool_call_node(state: AgentState, config: RunnableConfig) -> AgentState:
     configurable = config.get("configurable", {})
     print_process = configurable.get("print_process", False)
     tool_executor = configurable.get("tool_executor")
-    
+
     # Get the last assistant message with tool calls
     messages = state.get("messages", [])
     tool_calls = None
@@ -289,43 +289,43 @@ def tool_call_node(state: AgentState, config: RunnableConfig) -> AgentState:
         if msg.get("role") == "assistant" and msg.get("tool_calls"):
             tool_calls = msg["tool_calls"]
             break
-    
+
     if not tool_calls:
         return {
             "messages": [{"role": "tool", "content": "Error: No tool calls found."}],
             "status": state["status"] + ["tool_response"]
         }
-    
+
     # Execute each tool call
     tool_results = []
     for tool_call in tool_calls:
         tool_id = tool_call.get("id", "")
         function_name = tool_call.get("function", {}).get("name", "")
         function_args_str = tool_call.get("function", {}).get("arguments", "{}")
-        
+
         # Parse arguments
         try:
             function_args = json.loads(function_args_str) if isinstance(function_args_str, str) else function_args_str
         except:
             function_args = {}
-        
+
         if print_process:
             print(f"\n📞 Calling tool: {function_name}")
             print(f"   Arguments: {function_args}")
-        
+
         # Execute tool
         result = tool_executor.execute_tool_call(function_name, function_args, state)
-        
+
         if print_process:
             print(f"✅ Tool result length: {len(result)} chars")
             print(f"   Preview: {result[:200]}...")
-        
+
         tool_results.append({
             "role": "tool",
             "tool_call_id": tool_id,
             "content": result
         })
-    
+
     return {
         "messages": tool_results,
         "status": state["status"] + ["tool_response"]
@@ -337,26 +337,26 @@ def check_limits_node(state: AgentState, config: RunnableConfig) -> AgentState:
     configurable = config.get("configurable", {})
     max_llm_calls = configurable.get("max_llm_calls", 20)
     print_process = configurable.get("print_process", False)
-    
+
     # Check if approaching limit
     if state["round"] >= max_llm_calls - 2:
         if print_process:
             print(f"\n⚠️ Approaching call limit, requesting final answer...")
-        
+
         messages = state.get("messages", []).copy()
         limit_message = """You are approaching the maximum number of calls. Please provide your final answer now based on all the information you have gathered.
 
 Wrap your final answer in <answer></answer> tags."""
-        
+
         messages.append({"role": "user", "content": limit_message})
-        
+
         # Call for final answer (no tools)
         client = configurable.get("client")
         model_name = configurable.get("model_name", "gpt-4")
         max_tokens = configurable.get("max_tokens", 4096)
         temperature = configurable.get("temperature", 0.7)
         stream = configurable.get("stream", False)
-        
+
         content, _ = call_llm(
             messages=messages,
             client=client,
@@ -367,16 +367,16 @@ Wrap your final answer in <answer></answer> tags."""
             stream=stream,
             print_process=print_process
         )
-        
+
         new_messages = [{"role": "assistant", "content": content.strip()}]
-        
+
         if '<answer>' in content and '</answer>' in content:
             prediction = content.split('<answer>')[1].split('</answer>')[0].strip()
             termination = 'answer (limit reached)'
         else:
             prediction = content.strip()
             termination = 'limit reached'
-        
+
         return {
             "messages": new_messages,
             "response": content.strip(),
@@ -384,7 +384,7 @@ Wrap your final answer in <answer></answer> tags."""
             "termination": termination,
             "status": state["status"] + ["answer"],
         }
-    
+
     return {}
 
 
@@ -392,9 +392,9 @@ def router_node(state: AgentState) -> Literal["tool_call", "check_limits", "answ
     """Router to determine next step."""
     if not state.get("status"):
         return "continue"
-    
+
     last_status = state["status"][-1]
-    
+
     if last_status == "tool_call":
         return "tool_call"
     elif last_status == "answer":
@@ -408,7 +408,7 @@ def router_node(state: AgentState) -> Literal["tool_call", "check_limits", "answ
 def finalize_node(state: AgentState) -> AgentState:
     """Finalize and extract answer."""
     response = state.get("response", "")
-    
+
     if '<answer>' in response and '</answer>' in response:
         prediction = response.split('<answer>')[1].split('</answer>')[0].strip()
         termination = 'answer'
@@ -416,7 +416,7 @@ def finalize_node(state: AgentState) -> AgentState:
         # Try to find answer in messages
         messages = state.get("messages", [])
         found_answer = False
-        
+
         for msg in reversed(messages):
             if msg.get("role") == "assistant":
                 content = msg.get("content", "")
@@ -425,7 +425,7 @@ def finalize_node(state: AgentState) -> AgentState:
                     termination = 'answer'
                     found_answer = True
                     break
-        
+
         if not found_answer:
             # Use the last substantial assistant message
             for msg in reversed(messages):
@@ -436,11 +436,11 @@ def finalize_node(state: AgentState) -> AgentState:
                         termination = 'answer (no tags)'
                         found_answer = True
                         break
-            
+
             if not found_answer:
                 prediction = 'No answer found.'
                 termination = 'no_answer'
-    
+
     return {
         "prediction": prediction,
         "termination": termination
@@ -450,16 +450,16 @@ def finalize_node(state: AgentState) -> AgentState:
 def create_react_graph() -> StateGraph:
     """Create the ReAct workflow graph."""
     workflow = StateGraph(AgentState)
-    
+
     # Add nodes
     workflow.add_node("planning", planning_node)
     workflow.add_node("tool_call", tool_call_node)
     workflow.add_node("check_limits", check_limits_node)
     workflow.add_node("finalize", finalize_node)
-    
+
     # Set entry point
     workflow.set_entry_point("planning")
-    
+
     # Add conditional edges from planning
     workflow.add_conditional_edges(
         "planning",
@@ -471,13 +471,13 @@ def create_react_graph() -> StateGraph:
             "continue": "check_limits"
         }
     )
-    
+
     # Route after check_limits
     def route_after_limits(state: AgentState) -> Literal["planning", "finalize"]:
         if state.get("status", []) and state["status"][-1] == "answer":
             return "finalize"
         return "planning"
-    
+
     workflow.add_conditional_edges(
         "check_limits",
         route_after_limits,
@@ -486,13 +486,13 @@ def create_react_graph() -> StateGraph:
             "finalize": "finalize"
         }
     )
-    
+
     # Tool call goes back to planning
     workflow.add_edge("tool_call", "planning")
-    
+
     # Finalize is the end
     workflow.add_edge("finalize", END)
-    
+
     return workflow.compile()
 
 

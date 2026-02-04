@@ -8,7 +8,7 @@ from typing import Dict, Optional, List
 def get_tools_definition() -> List[Dict]:
     """
     Get tools definition for OpenAI-compatible APIs.
-    
+
     Returns:
         List of tool definitions in OpenAI function calling format
     """
@@ -150,19 +150,19 @@ def get_tools_definition() -> List[Dict]:
 
 class ToolExecutor:
     """Executor for agent tools."""
-    
+
     def __init__(self, reader):
         """
         Initialize the tool executor.
-        
+
         Args:
             reader: Reader instance for API access
         """
         self.reader = reader
-    
+
     def search_papers(
-        self, 
-        query: str, 
+        self,
+        query: str,
         size: int = 10,
         offset: int = 0,
         search_mode: str = "hybrid",
@@ -176,7 +176,7 @@ class ToolExecutor:
     ) -> str:
         """
         Search for papers with advanced filtering.
-        
+
         Args:
             query: Search query
             size: Number of results to return
@@ -189,7 +189,7 @@ class ToolExecutor:
             date_from: Publication date from (YYYY-MM-DD)
             date_to: Publication date to (YYYY-MM-DD)
             state_cache: State cache for storing results
-            
+
         Returns:
             Formatted search results
         """
@@ -199,12 +199,12 @@ class ToolExecutor:
             "offset": offset,
             "search_mode": search_mode,
         }
-        
+
         # Add hybrid search weights if applicable
         if search_mode == "hybrid":
             search_params["bm25_weight"] = bm25_weight
             search_params["vector_weight"] = vector_weight
-        
+
         # Add optional filters
         if authors:
             search_params["authors"] = authors
@@ -214,25 +214,25 @@ class ToolExecutor:
             search_params["date_from"] = date_from
         if date_to:
             search_params["date_to"] = date_to
-        
+
         # Execute search
         results = self.reader.search(query=query, **search_params)
-        
+
         if not results:
             return f"Error: Failed to search for papers with query '{query}'."
-        
+
         # Cache results
         if state_cache is not None:
             state_cache["search_results"] = results
-        
+
         # Format results
         total = results.get("total", 0) if isinstance(results, dict) else len(results)
         result_list = results.get("results", results) if isinstance(results, dict) else results
-        
+
         output = [f"=== Search Results for '{query}' ==="]
         output.append(f"Total: {total} papers found | Showing: {len(result_list)} results")
         output.append(f"Mode: {search_mode.upper()}")
-        
+
         # Show active filters
         filters = []
         if authors:
@@ -244,12 +244,12 @@ class ToolExecutor:
         if date_from or date_to:
             date_range = f"{date_from or '*'} to {date_to or '*'}"
             filters.append(f"Date Range: {date_range}")
-        
+
         if filters:
             output.append(f"Filters: {' | '.join(filters)}")
-        
+
         output.append("")
-        
+
         for i, paper in enumerate(result_list, offset + 1):
             arxiv_id = paper.get("arxiv_id", "Unknown")
             title = paper.get("title", "No title")
@@ -257,10 +257,10 @@ class ToolExecutor:
             score = paper.get("score", 0)
             citation = paper.get("citation", 0)
             paper_categories = paper.get("categories", [])
-            
+
             output.append(f"{i}. {title}")
             output.append(f"   arXiv ID: {arxiv_id} | Score: {score:.3f} | Citations: {citation}")
-            
+
             if paper_categories:
                 # Handle categories as both list and str
                 if isinstance(paper_categories, list):
@@ -268,24 +268,24 @@ class ToolExecutor:
                 else:
                     categories_str = str(paper_categories)
                 output.append(f"   Categories: {categories_str}")
-            
+
             output.append(f"   Abstract: {abstract}...")
             output.append("")
-        
+
         return "\n".join(output)
-    
+
     def load_paper(
-        self, 
-        arxiv_id: str, 
+        self,
+        arxiv_id: str,
         state_papers: Dict
     ) -> str:
         """
         Load a paper's metadata.
-        
+
         Args:
             arxiv_id: arXiv ID
             state_papers: Papers dict in state
-            
+
         Returns:
             Formatted paper information
         """
@@ -293,13 +293,13 @@ class ToolExecutor:
         if arxiv_id in state_papers:
             paper = state_papers[arxiv_id]
             return f"Paper {arxiv_id} is already loaded: {paper['title']}"
-        
+
         # Load paper
         head_info = self.reader.head(arxiv_id)
-        
+
         if not head_info:
             return f"Error: Failed to load paper {arxiv_id}."
-        
+
         # Store in state (handle None values)
         state_papers[arxiv_id] = {
             "arxiv_id": arxiv_id,
@@ -312,18 +312,18 @@ class ToolExecutor:
             "publish_at": head_info.get("publish_at", ""),
             "loaded_sections": {}
         }
-        
+
         # Format output
         paper = state_papers[arxiv_id]
         output = [f"=== Paper Loaded: {arxiv_id} ===\n"]
         output.append(f"Title: {paper['title']}")
-        
+
         # Handle authors - could be list of dicts, list of strings, or a single string
         authors = paper['authors']
         if isinstance(authors, str):
             # Split comma-separated string into list
             authors = [a.strip() for a in authors.split(',') if a.strip()]
-        
+
         output.append(f"\nAuthors ({len(authors)} total):")
         for i, author in enumerate(authors[:5], 1):
             # Handle both dict and str formats
@@ -339,10 +339,10 @@ class ToolExecutor:
             else:
                 # author is a string
                 output.append(f"  {i}. {author}")
-        
+
         if len(authors) > 5:
             output.append(f"  ... and {len(authors) - 5} more authors")
-        
+
         # Handle categories as both list and str
         categories = paper['categories']
         if isinstance(categories, list):
@@ -352,7 +352,7 @@ class ToolExecutor:
         output.append(f"\nCategories: {categories_str}")
         output.append(f"Published: {paper.get('publish_at', 'N/A')}")
         output.append(f"\nAbstract:\n{paper['abstract']}\n")
-        
+
         # Show section TLDRs
         sections = paper.get("sections") or {}
         if sections:
@@ -365,143 +365,143 @@ class ToolExecutor:
                 output.append(f"    {tldr}")
         else:
             output.append("Note: Section information not available for this paper.")
-        
+
         output.append(f"\nTotal paper tokens: {paper['token_count']}")
-        
+
         return "\n".join(output)
-    
+
     def read_section(
-        self, 
-        arxiv_id: str, 
-        section_name: str, 
-        state_papers: Dict, 
+        self,
+        arxiv_id: str,
+        section_name: str,
+        state_papers: Dict,
         sections_cache: Dict
     ) -> str:
         """
         Read a specific section from a paper.
-        
+
         Args:
             arxiv_id: arXiv ID
             section_name: Name of the section
             state_papers: Papers dict in state
             sections_cache: Cache for loaded sections
-            
+
         Returns:
             Section content or error message
         """
         # Check if paper is loaded
         if arxiv_id not in state_papers:
             return f"Error: Paper {arxiv_id} is not loaded. Please use load_paper first."
-        
+
         paper = state_papers[arxiv_id]
-        
+
         # Check if sections are available
         sections = paper.get("sections") or {}
         if not sections:
             return f"Error: Section information is not available for paper {arxiv_id}. This paper may not have structured sections."
-        
+
         # Check if section exists
         if section_name not in sections:
             available = ", ".join(sections.keys())
             return f"Error: Section '{section_name}' not found in paper {arxiv_id}. Available sections: {available}"
-        
+
         # Check cache
         if arxiv_id in sections_cache and section_name in sections_cache[arxiv_id]:
             content = sections_cache[arxiv_id][section_name]
             return f"=== Section: {section_name} (Paper: {arxiv_id}) ===\n\n{content}\n\n=== End of Section ==="
-        
+
         # Fetch section
         content = self.reader.section(arxiv_id, section_name)
-        
+
         if not content:
             return f"Error: Failed to fetch section '{section_name}' from paper {arxiv_id}."
-        
+
         # Cache it
         if arxiv_id not in sections_cache:
             sections_cache[arxiv_id] = {}
         sections_cache[arxiv_id][section_name] = content
-        
+
         # Also update paper's loaded_sections
         paper["loaded_sections"][section_name] = content
-        
+
         return f"=== Section: {section_name} (Paper: {arxiv_id}) ===\n\n{content}\n\n=== End of Section ==="
-    
+
     def get_full_paper(
-        self, 
-        arxiv_id: str, 
-        state_papers: Dict, 
+        self,
+        arxiv_id: str,
+        state_papers: Dict,
         full_paper_cache: Dict
     ) -> str:
         """
         Get the full paper content.
-        
+
         Args:
             arxiv_id: arXiv ID
             state_papers: Papers dict in state
             full_paper_cache: Cache for full paper content
-            
+
         Returns:
             Full paper content or error message
         """
         # Check if paper is loaded
         if arxiv_id not in state_papers:
             return f"Error: Paper {arxiv_id} is not loaded. Please use load_paper first."
-        
+
         # Check cache
         if arxiv_id in full_paper_cache:
             content = full_paper_cache[arxiv_id]
             return f"=== Full Paper: {arxiv_id} ===\n\n{content}\n\n=== End of Full Paper ==="
-        
+
         # Fetch full paper
         content = self.reader.raw(arxiv_id)
-        
+
         if not content:
             return f"Error: Failed to fetch full paper content for {arxiv_id}."
-        
+
         # Cache it
         full_paper_cache[arxiv_id] = content
-        
+
         return f"=== Full Paper: {arxiv_id} ===\n\n{content}\n\n=== End of Full Paper ==="
-    
+
     def get_paper_preview(
-        self, 
-        arxiv_id: str, 
+        self,
+        arxiv_id: str,
     ) -> str:
         """
         Get a preview of the paper.
-        
+
         Args:
             arxiv_id: arXiv ID
             max_tokens: Maximum tokens to return
-            
+
         Returns:
             Paper preview or error message
         """
         preview = self.reader.preview(arxiv_id)
-        
+
         if not preview:
             return f"Error: Failed to fetch preview for {arxiv_id}."
-        
+
         output = [f"=== Preview: {arxiv_id} ===\n"]
         output.append(preview.get("content", "No content available"))
         output.append("\n=== End of Preview ===")
-        
+
         return "\n".join(output)
-    
+
     def execute_tool_call(
-        self, 
-        tool_name: str, 
-        tool_args: Dict, 
+        self,
+        tool_name: str,
+        tool_args: Dict,
         state: Dict
     ) -> str:
         """
         Execute a single tool call.
-        
+
         Args:
             tool_name: Name of the tool
             tool_args: Arguments for the tool
             state: Current agent state
-            
+
         Returns:
             Tool execution result
         """
@@ -517,7 +517,7 @@ class ToolExecutor:
                 min_citation = tool_args.get("min_citation")
                 date_from = tool_args.get("date_from")
                 date_to = tool_args.get("date_to")
-                
+
                 return self.search_papers(
                     query=query,
                     size=size,
@@ -531,36 +531,36 @@ class ToolExecutor:
                     date_to=date_to,
                     state_cache=state
                 )
-            
+
             elif tool_name == "load_paper":
                 arxiv_id = tool_args.get("arxiv_id", "")
                 return self.load_paper(arxiv_id, state["papers"])
-            
+
             elif tool_name == "read_section":
                 arxiv_id = tool_args.get("arxiv_id", "")
                 section_name = tool_args.get("section_name", "")
                 return self.read_section(
-                    arxiv_id, 
-                    section_name, 
-                    state["papers"], 
+                    arxiv_id,
+                    section_name,
+                    state["papers"],
                     state["paper_sections_cache"]
                 )
-            
+
             elif tool_name == "get_full_paper":
                 arxiv_id = tool_args.get("arxiv_id", "")
                 return self.get_full_paper(
-                    arxiv_id, 
-                    state["papers"], 
+                    arxiv_id,
+                    state["papers"],
                     state["full_paper_cache"]
                 )
-            
+
             elif tool_name == "get_paper_preview":
                 arxiv_id = tool_args.get("arxiv_id", "")
                 return self.get_paper_preview(arxiv_id)
-            
+
             else:
                 return f"Error: Unknown tool '{tool_name}'"
-        
+
         except Exception as e:
             return f"Error executing {tool_name}: {e}"
 
@@ -568,22 +568,22 @@ class ToolExecutor:
 def format_paper_context(papers: Dict[str, Dict]) -> str:
     """
     Format loaded papers for context.
-    
+
     Args:
         papers: Dictionary of loaded papers
-        
+
     Returns:
         Formatted context string
     """
     if not papers:
         return "No papers have been loaded yet."
-    
+
     context_parts = ["=== Loaded Papers ===\n"]
-    
+
     for arxiv_id, paper in papers.items():
         context_parts.append(f"## Paper: {arxiv_id}")
         context_parts.append(f"Title: {paper['title']}")
         context_parts.append(f"Abstract: {paper['abstract'][:200]}...")
         context_parts.append("")
-    
+
     return "\n".join(context_parts)
