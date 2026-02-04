@@ -3,16 +3,16 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "py1stauthor"
+name = "deepxiv"
 version = "0.1.0"
-description = "A Python package for arXiv paper access and intelligent agent interaction"
+description = "A Python package for arXiv paper access with CLI and MCP server support"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
     {name = "Hongjin Qian"},
 ]
-keywords = ["arxiv", "research", "papers", "agent", "llm", "react"]
+keywords = ["arxiv", "research", "papers", "agent", "llm", "react", "mcp", "cli"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -28,9 +28,13 @@ classifiers = [
 ]
 dependencies = [
     "requests>=2.31.0",
+    "click>=8.0.0",
 ]
 
 [project.optional-dependencies]
+mcp = [
+    "mcp[cli]>=1.2.0",
+]
 agent = [
     "openai>=1.0.0",
     "langgraph>=0.0.20",
@@ -38,6 +42,8 @@ agent = [
 ]
 all = [
     "requests>=2.31.0",
+    "click>=8.0.0",
+    "mcp[cli]>=1.2.0",
     "openai>=1.0.0",
     "langgraph>=0.0.20",
     "langchain-core>=0.1.0",
@@ -50,17 +56,20 @@ dev = [
     "mypy>=1.0.0",
 ]
 
+[project.scripts]
+deepxiv = "deepxiv.cli:main"
+
 [project.urls]
 Homepage = "https://1stauthor.com/"
-Documentation = "https://github.com/qhjqhj00/py1stauthor#readme"
-Repository = "https://github.com/qhjqhj00/py1stauthor"
-"Bug Tracker" = "https://github.com/qhjqhj00/py1stauthor/issues"
+Documentation = "https://github.com/qhjqhj00/deepxiv#readme"
+Repository = "https://github.com/qhjqhj00/deepxiv"
+"Bug Tracker" = "https://github.com/qhjqhj00/deepxiv/issues"
 Demo = "https://1stauthor.com/"
 "API Documentation" = "https://data.rag.ac.cn/api/docs"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["py1stauthor*"]
+include = ["deepxiv*"]
 exclude = ["tests*", "examples*"]
 
 [tool.pytest.ini_options]

@@ -1,6 +1,3 @@
 include README.md
-include README_CN.md
 include LICENSE
-include requirements.txt
-include requirements-full.txt
-recursive-include py1stauthor *.py
+recursive-include deepxiv *.py
