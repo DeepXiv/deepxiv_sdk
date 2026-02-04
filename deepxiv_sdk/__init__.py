@@ -1,5 +1,5 @@
 """
-deepxiv - A Python package for arXiv paper access with CLI and MCP server support.
+deepxiv-sdk - A Python package for arXiv paper access with CLI and MCP server support.
 """
 
 __version__ = "0.1.0"

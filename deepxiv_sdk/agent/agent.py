@@ -16,7 +16,7 @@ class Agent:
     Intelligent agent for interacting with arXiv papers using ReAct framework.
 
     Example:
-        >>> from deepxiv import Reader, Agent
+        >>> from deepxiv_sdk import Reader, Agent
         >>> reader = Reader(token="your_token")
         >>> agent = Agent(
         ...     api_key="your_api_key",

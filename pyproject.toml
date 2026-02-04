@@ -3,7 +3,7 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "deepxiv"
+name = "deepxiv-sdk"
 version = "0.1.0"
 description = "A Python package for arXiv paper access with CLI and MCP server support"
 readme = "README.md"
@@ -57,19 +57,19 @@ dev = [
 ]
 
 [project.scripts]
-deepxiv = "deepxiv.cli:main"
+deepxiv = "deepxiv_sdk.cli:main"
 
 [project.urls]
 Homepage = "https://1stauthor.com/"
-Documentation = "https://github.com/qhjqhj00/deepxiv#readme"
-Repository = "https://github.com/qhjqhj00/deepxiv"
-"Bug Tracker" = "https://github.com/qhjqhj00/deepxiv/issues"
+Documentation = "https://github.com/qhjqhj00/deepxiv-sdk#readme"
+Repository = "https://github.com/qhjqhj00/deepxiv-sdk"
+"Bug Tracker" = "https://github.com/qhjqhj00/deepxiv-sdk/issues"
 Demo = "https://1stauthor.com/"
 "API Documentation" = "https://data.rag.ac.cn/api/docs"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["deepxiv*"]
+include = ["deepxiv_sdk*"]
 exclude = ["tests*", "examples*"]
 
 [tool.pytest.ini_options]

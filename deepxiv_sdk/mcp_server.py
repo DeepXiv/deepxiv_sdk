@@ -6,7 +6,7 @@ from mcp.server.fastmcp import FastMCP
 from .reader import Reader
 
 # Create the MCP server
-mcp = FastMCP("deepxiv")
+mcp = FastMCP("deepxiv-sdk")
 
 # Create a reader instance with token from environment
 _reader = Reader(token=os.environ.get("DEEPXIV_TOKEN"))

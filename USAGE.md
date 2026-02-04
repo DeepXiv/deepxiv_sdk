@@ -1,4 +1,4 @@
-# deepxiv Usage Guide
+# deepxiv-sdk Usage Guide
 
 **Note:** Some papers require an API token, others are publicly accessible. Use `2409.05591` (MemoRAG paper) for testing - it works without authentication.
 
@@ -16,19 +16,17 @@ deepxiv search "agent" --token "your_token_here"
 ## Installation
 
 ```bash
-cd /Users/zhengliu/workspace/arxiv_mcp/deepxiv
-
 # Basic install (Reader + CLI)
-pip install -e .
+pip install deepxiv-sdk
 
 # With MCP server support
-pip install -e ".[mcp]"
+pip install deepxiv-sdk[mcp]
 
 # With Agent support
-pip install -e ".[agent]"
+pip install deepxiv-sdk[agent]
 
 # Full install (all features)
-pip install -e ".[all]"
+pip install deepxiv-sdk[all]
 ```
 
 ---
@@ -91,7 +89,7 @@ deepxiv serve
 ### 1. Basic Reader usage
 
 ```python
-from deepxiv import Reader
+from deepxiv_sdk import Reader
 
 reader = Reader()
 
@@ -116,7 +114,7 @@ print(f"Full paper length: {len(content)} chars")
 ### 2. Search papers (requires token)
 
 ```python
-from deepxiv import Reader
+from deepxiv_sdk import Reader
 
 reader = Reader(token="your_api_token")
 
@@ -129,7 +127,7 @@ for paper in results.get("results", []):
 
 ```python
 import os
-from deepxiv import Reader, Agent
+from deepxiv_sdk import Reader, Agent
 
 reader = Reader()
 agent = Agent(
@@ -177,31 +175,11 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ---
 
-## Run Examples
-
-```bash
-cd /Users/zhengliu/workspace/arxiv_mcp/deepxiv
-
-# Basic reader example
-python examples/example_reader.py
-
-# Agent example (requires OPENAI_API_KEY)
-python examples/example_agent.py
-
-# Advanced examples
-python examples/example_advanced.py
-
-# Quick start
-python examples/quickstart.py
-```
-
----
-
 ## Project Structure
 
 ```
-deepxiv/
-├── deepxiv/
+deepxiv-sdk/
+├── deepxiv_sdk/
 │   ├── __init__.py       # Package init
 │   ├── reader.py         # Core API client
 │   ├── cli.py            # Click CLI
