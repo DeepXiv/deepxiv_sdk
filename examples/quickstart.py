@@ -2,7 +2,7 @@
 Quick start example - get up and running in minutes.
 """
 import os
-from py1stauthor import Reader, Agent
+from deepxiv_sdk import Reader, Agent
 
 
 def main():

@@ -2,7 +2,7 @@
 Advanced examples showing more complex Agent usage patterns.
 """
 import os
-from py1stauthor import Reader, Agent
+from deepxiv_sdk import Reader, Agent
 
 
 def example_literature_review():
