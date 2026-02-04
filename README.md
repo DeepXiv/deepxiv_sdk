@@ -169,6 +169,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- 🐛 **GitHub Issues**: [https://github.com/qhjqhj00/py1stauthor/issues](https://github.com/qhjqhj00/py1stauthor/issues)
+- 🐛 **GitHub Issues**: [https://github.com/qhjqhj00/deepxiv_sdk/issues](https://github.com/qhjqhj00/deepxiv_sdk/issues)
 - 📚 **API Documentation**: [https://data.rag.ac.cn/api/docs](https://data.rag.ac.cn/api/docs)
 - 🎮 **Demo**: [https://1stauthor.com/](https://1stauthor.com/)
