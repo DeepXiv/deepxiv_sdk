@@ -5,7 +5,24 @@ import json
 import os
 import sys
 import click
+from pathlib import Path
 from .reader import Reader
+
+# Try to load .env file if python-dotenv is available
+try:
+    from dotenv import load_dotenv
+    # Try to load from current directory first, then from home directory
+    env_paths = [
+        Path.cwd() / ".env",  # Current directory
+        Path.home() / ".env",  # Home directory
+    ]
+    for env_path in env_paths:
+        if env_path.exists():
+            load_dotenv(env_path)
+            break
+except ImportError:
+    # python-dotenv not installed, skip loading .env file
+    pass
 
 
 def get_token(token_option):
@@ -13,6 +30,28 @@ def get_token(token_option):
     if token_option:
         return token_option
     return os.environ.get("DEEPXIV_TOKEN")
+
+
+def check_token_and_warn(token):
+    """Check if token is configured and warn if not."""
+    if not token:
+        click.echo("⚠️  Warning: DEEPXIV_TOKEN not configured.", err=True)
+        click.echo("   Some features may not work without authentication.\n", err=True)
+        click.echo("   Get your free token at: https://data.rag.ac.cn/register", err=True)
+        click.echo("   Then configure it with: deepxiv config\n", err=True)
+        return False
+    return True
+
+
+def handle_auth_error():
+    """Handle authentication errors with helpful message."""
+    click.echo("\n❌ Authentication failed (401 Unauthorized)\n", err=True)
+    click.echo("Your API token is missing or invalid.\n", err=True)
+    click.echo("📝 To get a free token:", err=True)
+    click.echo("   1. Visit: https://data.rag.ac.cn/register", err=True)
+    click.echo("   2. Register and copy your token", err=True)
+    click.echo("   3. Run: deepxiv config\n", err=True)
+    click.echo("💡 Or set it directly: export DEEPXIV_TOKEN=your_token", err=True)
 
 
 @click.group()
@@ -45,6 +84,9 @@ def search(query, token, limit, mode, output_format, categories, min_citations, 
         deepxiv search "transformer" --mode bm25 --format json
         deepxiv search "LLM" --token YOUR_TOKEN
     """
+    # Warn if token not configured
+    check_token_and_warn(token)
+    
     reader = Reader(token=token)
 
     # Parse categories
@@ -63,7 +105,7 @@ def search(query, token, limit, mode, output_format, categories, min_citations, 
     )
 
     if not results:
-        click.echo("No results found or search failed.", err=True)
+        handle_auth_error()
         sys.exit(1)
 
     if output_format == "json":
@@ -94,7 +136,9 @@ def search(query, token, limit, mode, output_format, categories, min_citations, 
               help="Output format (default: markdown)")
 @click.option("--section", "-s", default=None, help="Get a specific section by name")
 @click.option("--preview", "-p", is_flag=True, help="Get only a preview (first ~10k chars)")
-def paper(arxiv_id, token, output_format, section, preview):
+@click.option("--head", is_flag=True, help="Get paper metadata (returns JSON)")
+@click.option("--raw", is_flag=True, help="Get raw markdown content")
+def paper(arxiv_id, token, output_format, section, preview, head, raw):
     """Get an arXiv paper by ID.
 
     Example:
@@ -102,14 +146,35 @@ def paper(arxiv_id, token, output_format, section, preview):
         deepxiv paper 2409.05591 --preview
         deepxiv paper 2409.05591 --token YOUR_TOKEN
         deepxiv paper 2409.05591 --section Introduction
+        deepxiv paper 2409.05591 --head
+        deepxiv paper 2409.05591 --raw
     """
+    # Warn if token not configured
+    check_token_and_warn(token)
+    
     reader = Reader(token=token)
 
-    if section:
+    if head:
+        # Get paper metadata
+        result = reader.head(arxiv_id)
+        if not result:
+            handle_auth_error()
+            sys.exit(1)
+        click.echo(json.dumps(result, indent=2))
+
+    elif raw:
+        # Get raw markdown content
+        content = reader.raw(arxiv_id)
+        if not content:
+            handle_auth_error()
+            sys.exit(1)
+        click.echo(content)
+
+    elif section:
         # Get specific section
         content = reader.section(arxiv_id, section)
         if not content:
-            click.echo(f"Failed to get section '{section}' from paper {arxiv_id}", err=True)
+            handle_auth_error()
             sys.exit(1)
 
         if output_format == "json":
@@ -122,7 +187,7 @@ def paper(arxiv_id, token, output_format, section, preview):
         # Get preview
         result = reader.preview(arxiv_id)
         if not result:
-            click.echo(f"Failed to get preview for paper {arxiv_id}", err=True)
+            handle_auth_error()
             sys.exit(1)
 
         if output_format == "json":
@@ -134,7 +199,7 @@ def paper(arxiv_id, token, output_format, section, preview):
         # Get full JSON
         result = reader.json(arxiv_id)
         if not result:
-            click.echo(f"Failed to get paper {arxiv_id}", err=True)
+            handle_auth_error()
             sys.exit(1)
         click.echo(json.dumps(result, indent=2))
 
@@ -153,10 +218,144 @@ def paper(arxiv_id, token, output_format, section, preview):
                 for name, info in head.get("sections", {}).items():
                     click.echo(f"- {name}: {info.get('tldr', 'No summary')[:100]}...")
             else:
-                click.echo(f"Failed to get paper {arxiv_id}", err=True)
+                handle_auth_error()
                 sys.exit(1)
         else:
             click.echo(content)
+
+
+@main.command()
+@click.option("--token", "-t", default=None, help="DEEPXIV_TOKEN to save (if not provided, will prompt)")
+@click.option("--global", "-g", "is_global", is_flag=True, default=True, help="Save to home directory (default: True)")
+def config(token, is_global):
+    """Configure DEEPXIV_TOKEN in .env file.
+
+    Get your free token at: https://data.rag.ac.cn/register
+
+    Example:
+        deepxiv config                    # Save to ~/.env (global)
+        deepxiv config --token YOUR_TOKEN
+        deepxiv config --no-global        # Save to current directory
+    """
+    # Get token from option or prompt
+    if not token:
+        click.echo("📝 Get your free token at: https://data.rag.ac.cn/register\n")
+        token = click.prompt("Please enter your DEEPXIV_TOKEN", hide_input=True)
+    
+    if not token or not token.strip():
+        click.echo("Error: Token cannot be empty", err=True)
+        sys.exit(1)
+    
+    token = token.strip()
+    
+    # Determine .env file location
+    if is_global:
+        env_file = Path.home() / ".env"
+    else:
+        env_file = Path.cwd() / ".env"
+    
+    env_line = f"DEEPXIV_TOKEN={token}\n"
+    
+    # Check if .env file exists
+    if env_file.exists():
+        # Read existing content
+        with open(env_file, "r") as f:
+            lines = f.readlines()
+        
+        # Check if DEEPXIV_TOKEN already exists
+        token_exists = False
+        for i, line in enumerate(lines):
+            if line.strip().startswith("DEEPXIV_TOKEN="):
+                lines[i] = env_line
+                token_exists = True
+                break
+        
+        # If token doesn't exist, append it
+        if not token_exists:
+            lines.append(env_line)
+        
+        # Write back to file
+        with open(env_file, "w") as f:
+            f.writelines(lines)
+        
+        action = "updated" if token_exists else "added"
+        click.echo(f"✓ DEEPXIV_TOKEN {action} in {env_file}")
+    else:
+        # Create new .env file
+        with open(env_file, "w") as f:
+            f.write(env_line)
+        click.echo(f"✓ Created {env_file} with DEEPXIV_TOKEN")
+    
+    click.echo(f"\n✅ Token saved successfully!")
+    click.echo(f"   The deepxiv CLI will automatically load it from {env_file}")
+    click.echo(f"\n💡 To use in other apps/shells:")
+    click.echo(f"   - Run: source {env_file}")
+    click.echo(f"   - Or add to ~/.bashrc: export DEEPXIV_TOKEN=your_token")
+
+
+@main.command()
+def help():
+    """Show detailed help and usage examples.
+
+    Example:
+        deepxiv help
+    """
+    help_text = """
+deepxiv - Access arXiv papers from the command line
+
+CONFIGURATION:
+  deepxiv config                    Configure your DEEPXIV_TOKEN
+
+SEARCH:
+  deepxiv search "query"            Search for papers
+    --limit, -l N                   Number of results (default: 10)
+    --mode, -m MODE                 Search mode: bm25, vector, hybrid (default: hybrid)
+    --format, -f FORMAT             Output format: text, json (default: text)
+    --categories, -c CATS           Filter by categories (e.g., cs.AI,cs.CL)
+    --min-citations N               Minimum citation count
+    --date-from YYYY-MM-DD          Publication date from
+    --date-to YYYY-MM-DD            Publication date to
+
+GET PAPER:
+  deepxiv paper ARXIV_ID            Get paper by arXiv ID
+    --head                          Get paper metadata (JSON)
+    --raw                           Get raw markdown content
+    --preview, -p                   Get preview (~10k chars)
+    --section, -s NAME              Get specific section
+    --format, -f FORMAT             Output format: markdown, json (default: markdown)
+
+MCP SERVER:
+  deepxiv serve                     Start MCP server
+    --transport, -t TYPE            Transport type: stdio (default: stdio)
+
+EXAMPLES:
+  # Configure token
+  deepxiv config
+
+  # Search examples
+  deepxiv search "transformer architecture" --limit 5
+  deepxiv search "machine learning" --categories cs.AI,cs.LG --min-citations 100
+  deepxiv search "quantum computing" --mode vector --format json
+
+  # Get paper examples
+  deepxiv paper 2409.05591
+  deepxiv paper 2409.05591 --head
+  deepxiv paper 2409.05591 --raw
+  deepxiv paper 2409.05591 --preview
+  deepxiv paper 2409.05591 --section Introduction
+
+ENVIRONMENT:
+  Get your free API token:
+    🌐 Register at: https://data.rag.ac.cn/register
+  
+  Set DEEPXIV_TOKEN via:
+    - Config command: deepxiv config (recommended)
+    - Environment variable: export DEEPXIV_TOKEN=your_token
+    - Command option: --token YOUR_TOKEN
+
+For more information, visit: https://data.rag.ac.cn
+"""
+    click.echo(help_text)
 
 
 @main.command()

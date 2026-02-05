@@ -33,17 +33,39 @@ pip install deepxiv-sdk[all]
 
 ## Quick Start
 
+### Step 1: Get Your Free API Token
+
+Visit [https://data.rag.ac.cn/register](https://data.rag.ac.cn/register) to get your free API token (1000 requests/day).
+
+### Step 2: Configure Your Token
+
+```bash
+# Interactive configuration (saves to ~/.env)
+deepxiv config
+
+# Or provide token directly
+deepxiv config --token YOUR_TOKEN
+
+# The CLI will automatically load token from ~/.env
+```
+
 ### CLI Usage
 
 ```bash
-# Get paper preview
-deepxiv paper 2409.05591 --preview
+# Show help
+deepxiv help
 
-# Get specific section (case-insensitive)
-deepxiv paper 2409.05591 --section introduction
+# Get paper in different formats
+deepxiv paper 2409.05591                    # Full markdown
+deepxiv paper 2409.05591 --head             # Metadata (JSON)
+deepxiv paper 2409.05591 --raw              # Raw markdown
+deepxiv paper 2409.05591 --preview          # Preview (~10k chars)
+deepxiv paper 2409.05591 --section intro    # Specific section
 
-# Search papers (requires token)
-deepxiv search "agent memory" --limit 5 --token YOUR_TOKEN
+# Search papers
+deepxiv search "agent memory" --limit 5
+deepxiv search "transformer" --mode bm25 --format json
+deepxiv search "LLM" --categories cs.AI,cs.CL --min-citations 100
 
 # Start MCP server
 deepxiv serve
@@ -124,17 +146,35 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## API Token
 
-- **Get API Token**: [https://data.rag.ac.cn/register](https://data.rag.ac.cn/register)
+- **Get Your Free Token**: [https://data.rag.ac.cn/register](https://data.rag.ac.cn/register)
 - **Daily Limit**: 1000 free requests per day
 - **Test Papers**: `2409.05591` and `2504.21776` are available without authentication
 
-Set token via environment variable or CLI option:
+### Token Configuration (3 Ways)
 
+**1. Using `config` command (Recommended)**
+```bash
+deepxiv config
+# Saves to ~/.env and automatically loads on every command
+```
+
+**2. Environment Variable**
 ```bash
 export DEEPXIV_TOKEN="your_token_here"
-# or
-deepxiv paper 2512.02556 --token "your_token_here"
+# Add to ~/.bashrc or ~/.zshrc for persistence
 ```
+
+**3. Command-line Option**
+```bash
+deepxiv paper 2512.02556 --token "your_token_here"
+# Useful for one-time usage or multiple tokens
+```
+
+The CLI automatically loads tokens from:
+1. Command-line `--token` option (highest priority)
+2. `DEEPXIV_TOKEN` environment variable
+3. `.env` file in current directory
+4. `~/.env` file in home directory (lowest priority)
 
 ## API Reference
 
