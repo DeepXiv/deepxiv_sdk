@@ -11,15 +11,15 @@ from .reader import Reader
 # Try to load .env file if python-dotenv is available
 try:
     from dotenv import load_dotenv
-    # Try to load from current directory first, then from home directory
+    # Load from home directory first (global config), then current directory (project config)
+    # Later files override earlier ones
     env_paths = [
-        Path.cwd() / ".env",  # Current directory
-        Path.home() / ".env",  # Home directory
+        Path.home() / ".env",  # Home directory (global)
+        Path.cwd() / ".env",   # Current directory (project-specific, can override global)
     ]
     for env_path in env_paths:
         if env_path.exists():
-            load_dotenv(env_path)
-            break
+            load_dotenv(env_path, override=False)  # Don't override already set env vars
 except ImportError:
     # python-dotenv not installed, skip loading .env file
     pass
@@ -137,13 +137,15 @@ def search(query, token, limit, mode, output_format, categories, min_citations, 
 @click.option("--section", "-s", default=None, help="Get a specific section by name")
 @click.option("--preview", "-p", is_flag=True, help="Get only a preview (first ~10k chars)")
 @click.option("--head", is_flag=True, help="Get paper metadata (returns JSON)")
+@click.option("--brief", "-b", is_flag=True, help="Get brief info (title, TLDR, keywords, citations)")
 @click.option("--raw", is_flag=True, help="Get raw markdown content")
-def paper(arxiv_id, token, output_format, section, preview, head, raw):
+def paper(arxiv_id, token, output_format, section, preview, head, brief, raw):
     """Get an arXiv paper by ID.
 
     Example:
         deepxiv paper 2409.05591
         deepxiv paper 2409.05591 --preview
+        deepxiv paper 2409.05591 --brief
         deepxiv paper 2409.05591 --token YOUR_TOKEN
         deepxiv paper 2409.05591 --section Introduction
         deepxiv paper 2409.05591 --head
@@ -161,6 +163,33 @@ def paper(arxiv_id, token, output_format, section, preview, head, raw):
             handle_auth_error()
             sys.exit(1)
         click.echo(json.dumps(result, indent=2))
+
+    elif brief:
+        # Get brief information
+        result = reader.brief(arxiv_id)
+        if not result:
+            handle_auth_error()
+            sys.exit(1)
+        
+        if output_format == "json":
+            click.echo(json.dumps(result, indent=2))
+        else:
+            # Pretty print brief info
+            click.echo(f"\n📄 {result.get('title', 'No title')}\n")
+            click.echo(f"🆔 arXiv: {result.get('arxiv_id', arxiv_id)}")
+            click.echo(f"📅 Published: {result.get('publish_at', 'N/A')}")
+            click.echo(f"📊 Citations: {result.get('citations', 0)}")
+            click.echo(f"🔗 PDF: {result.get('src_url', 'N/A')}")
+            
+            if result.get('keywords'):
+                keywords = result.get('keywords', [])
+                if isinstance(keywords, list):
+                    click.echo(f"\n🏷️  Keywords: {', '.join(keywords)}")
+                else:
+                    click.echo(f"\n🏷️  Keywords: {keywords}")
+            
+            if result.get('tldr'):
+                click.echo(f"\n💡 TLDR:\n{result.get('tldr')}\n")
 
     elif raw:
         # Get raw markdown content
@@ -294,6 +323,41 @@ def config(token, is_global):
 
 
 @main.command()
+@click.argument("pmc_id")
+@click.option("--token", "-t", default=None, envvar="DEEPXIV_TOKEN", help="API token (or set DEEPXIV_TOKEN env var)")
+@click.option("--format", "-f", "output_format", default="json", type=click.Choice(["json"]),
+              help="Output format (default: json)")
+@click.option("--head", is_flag=True, help="Get PMC paper metadata (returns JSON)")
+def pmc(pmc_id, token, output_format, head):
+    """Get a PMC (PubMed Central) paper by ID.
+
+    Example:
+        deepxiv pmc PMC544940
+        deepxiv pmc PMC544940 --head
+        deepxiv pmc PMC514704 --token YOUR_TOKEN
+    """
+    # Warn if token not configured
+    check_token_and_warn(token)
+    
+    reader = Reader(token=token)
+
+    if head:
+        # Get PMC paper metadata
+        result = reader.pmc_head(pmc_id)
+        if not result:
+            handle_auth_error()
+            sys.exit(1)
+        click.echo(json.dumps(result, indent=2))
+    else:
+        # Get full PMC JSON
+        result = reader.pmc_json(pmc_id)
+        if not result:
+            handle_auth_error()
+            sys.exit(1)
+        click.echo(json.dumps(result, indent=2))
+
+
+@main.command()
 def help():
     """Show detailed help and usage examples.
 
@@ -319,10 +383,16 @@ SEARCH:
 GET PAPER:
   deepxiv paper ARXIV_ID            Get paper by arXiv ID
     --head                          Get paper metadata (JSON)
+    --brief, -b                     Get brief info (title, TLDR, keywords, citations)
     --raw                           Get raw markdown content
     --preview, -p                   Get preview (~10k chars)
     --section, -s NAME              Get specific section
     --format, -f FORMAT             Output format: markdown, json (default: markdown)
+
+GET PMC PAPER:
+  deepxiv pmc PMC_ID                Get PMC paper by ID
+    --head                          Get PMC paper metadata (JSON)
+    --format, -f FORMAT             Output format: json (default: json)
 
 MCP SERVER:
   deepxiv serve                     Start MCP server
@@ -340,9 +410,15 @@ EXAMPLES:
   # Get paper examples
   deepxiv paper 2409.05591
   deepxiv paper 2409.05591 --head
+  deepxiv paper 2409.05591 --brief
   deepxiv paper 2409.05591 --raw
   deepxiv paper 2409.05591 --preview
   deepxiv paper 2409.05591 --section Introduction
+
+  # Get PMC paper examples
+  deepxiv pmc PMC544940
+  deepxiv pmc PMC544940 --head
+  deepxiv pmc PMC514704
 
 ENVIRONMENT:
   Get your free API token:

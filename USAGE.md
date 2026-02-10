@@ -1,6 +1,10 @@
 # deepxiv-sdk Usage Guide
 
-**Note:** Some papers require an API token, others are publicly accessible. Use `2409.05591` (MemoRAG paper) for testing - it works without authentication.
+**Note:** Some papers require an API token, others are publicly accessible.
+
+**Free test papers:**
+- arXiv: `2409.05591` and `2504.21776` 
+- PMC: `PMC544940` and `PMC514704`
 
 ## Setting API Token
 
@@ -43,32 +47,39 @@ deepxiv paper --help
 deepxiv serve --help
 ```
 
-### 2. Get paper preview
+### 2. Get brief paper info
+
+```bash
+# Get quick summary with title, TLDR, keywords, citations
+deepxiv paper 2409.05591 --brief
+```
+
+### 3. Get paper preview
 
 ```bash
 # Use 2409.05591 - this paper is publicly accessible
 deepxiv paper 2409.05591 --preview
 ```
 
-### 3. Get paper in markdown format
+### 4. Get paper in markdown format
 
 ```bash
 deepxiv paper 2409.05591
 ```
 
-### 4. Get specific section
+### 5. Get specific section
 
 ```bash
 deepxiv paper 2409.05591 --section Introduction
 ```
 
-### 5. Get paper as JSON
+### 6. Get paper as JSON
 
 ```bash
 deepxiv paper 2409.05591 --format json
 ```
 
-### 6. Search papers (requires API token)
+### 7. Search papers (requires API token)
 
 ```bash
 deepxiv search "agent memory" --limit 5
@@ -76,7 +87,18 @@ deepxiv search "transformer" --mode bm25 --format json
 deepxiv search "LLM" --categories cs.AI,cs.CL --min-citations 10
 ```
 
-### 7. Start MCP server
+### 8. Get PMC papers
+
+```bash
+# Get PMC paper metadata
+deepxiv pmc PMC544940 --head
+
+# Get full PMC paper (JSON)
+deepxiv pmc PMC544940
+deepxiv pmc PMC514704
+```
+
+### 9. Start MCP server
 
 ```bash
 deepxiv serve
@@ -92,6 +114,12 @@ deepxiv serve
 from deepxiv_sdk import Reader
 
 reader = Reader()
+
+# Get brief info (quick summary)
+brief = reader.brief("2409.05591")
+print(f"Title: {brief['title']}")
+print(f"TLDR: {brief.get('tldr', 'N/A')}")
+print(f"Citations: {brief.get('citations', 0)}")
 
 # Get paper preview
 preview = reader.preview("2409.05591")
@@ -111,7 +139,25 @@ content = reader.raw("2409.05591")
 print(f"Full paper length: {len(content)} chars")
 ```
 
-### 2. Search papers (requires token)
+### 2. Access PMC papers
+
+```python
+from deepxiv_sdk import Reader
+
+reader = Reader()
+
+# Get PMC paper metadata
+pmc_head = reader.pmc_head("PMC544940")
+print(f"PMC Title: {pmc_head['title']}")
+print(f"DOI: {pmc_head.get('doi', 'N/A')}")
+print(f"Abstract: {pmc_head.get('abstract', '')[:200]}")
+
+# Get full PMC paper
+pmc_full = reader.pmc_json("PMC544940")
+print(f"PMC Full content: {len(str(pmc_full))} chars")
+```
+
+### 3. Search papers (requires token)
 
 ```python
 from deepxiv_sdk import Reader
@@ -123,7 +169,7 @@ for paper in results.get("results", []):
     print(f"{paper['title']} (arXiv:{paper['arxiv_id']})")
 ```
 
-### 3. Agent usage (requires OpenAI API key)
+### 4. Agent usage (requires OpenAI API key)
 
 ```python
 import os
@@ -168,10 +214,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 | Tool | Description |
 |------|-------------|
 | `search_papers` | Search arXiv with hybrid search |
+| `get_paper_brief` | Get brief info (title, TLDR, keywords, citations) |
 | `get_paper_metadata` | Get paper metadata and section TLDRs |
 | `get_paper_section` | Read a specific section |
 | `get_full_paper` | Get complete paper content |
 | `get_paper_preview` | Get preview (~10k chars) |
+| `get_pmc_metadata` | Get PMC paper metadata |
+| `get_pmc_full` | Get complete PMC paper in JSON |
 
 ---
 

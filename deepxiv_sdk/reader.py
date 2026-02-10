@@ -19,6 +19,7 @@ class Reader:
         self.token = token
         self.base_url = base_url.rstrip('/')
         self.arxiv_endpoint = f"{self.base_url}/arxiv/"
+        self.pmc_endpoint = f"{self.base_url}/pmc/"
         self.timeout = 60
 
     def _make_request(self, url: str, params: Dict = None) -> Optional[Dict]:
@@ -131,6 +132,29 @@ class Reader:
         }
         return self._make_request(self.arxiv_endpoint, params=params)
 
+    def brief(self, arxiv_id: str) -> Optional[Dict]:
+        """
+        Get brief paper information (concise summary for quick overview).
+
+        Args:
+            arxiv_id: arXiv ID (e.g., "2409.05591", "2504.21776")
+
+        Returns:
+            Dictionary with brief paper information including:
+            - arxiv_id: arXiv paper ID
+            - src_url: Direct link to PDF
+            - title: Paper title
+            - tldr: AI-generated summary (if available)
+            - keywords: List of keywords (if available)
+            - publish_at: Publication date
+            - citations: Citation count
+        """
+        params = {
+            "arxiv_id": arxiv_id,
+            "type": "brief"
+        }
+        return self._make_request(self.arxiv_endpoint, params=params)
+
     def _match_section_name(self, arxiv_id: str, section_name: str) -> Optional[str]:
         """
         Match user input to actual section name (case-insensitive, partial match).
@@ -146,16 +170,17 @@ class Reader:
         if not head or "sections" not in head:
             return None
 
-        sections = head.get("sections", {})
+        sections = head.get("sections", [])
         section_lower = section_name.lower()
 
+        section_names = [section["name"] for section in sections]
         # Try exact match first (case-insensitive)
-        for name in sections.keys():
+        for name in section_names:
             if name.lower() == section_lower:
                 return name
 
         # Try partial match (section name contains the query)
-        for name in sections.keys():
+        for name in section_names:
             # Remove leading numbers like "1. " or "2. "
             clean_name = name.lower()
             if clean_name.startswith(tuple(f"{i}. " for i in range(10))):
@@ -251,21 +276,43 @@ class Reader:
         }
         return self._make_request(self.arxiv_endpoint, params=params)
 
-    def markdown(self, arxiv_id: str) -> str:
+    # ========== PMC (PubMed Central) Methods ==========
+
+    def pmc_head(self, pmc_id: str) -> Optional[Dict]:
         """
-        Get the URL for beautifully rendered HTML page for viewing in a browser.
+        Get PMC paper metadata (title, abstract, authors, categories, publication date).
 
         Args:
-            arxiv_id: arXiv ID (e.g., "2409.05591")
+            pmc_id: PMC ID (e.g., "PMC544940", "PMC514704")
 
         Returns:
-            URL string for the HTML view
+            Dictionary with PMC paper metadata including:
+            - pmc_id: PMC paper ID
+            - title: Paper title
+            - doi: Digital Object Identifier
+            - abstract: Paper abstract
+            - authors: List of authors
+            - categories: Medical subject categories
+            - publish_at: Publication date
         """
         params = {
-            "arxiv_id": arxiv_id,
-            "type": "markdown"
+            "pmc_id": pmc_id,
+            "type": "head"
         }
-        # For markdown view, return the URL directly since it returns HTML
-        from urllib.parse import urlencode
-        query_string = urlencode(params)
-        return f"{self.arxiv_endpoint}?{query_string}"
+        return self._make_request(self.pmc_endpoint, params=params)
+
+    def pmc_json(self, pmc_id: str) -> Optional[Dict]:
+        """
+        Get the complete PMC paper in structured JSON format with full content and metadata.
+
+        Args:
+            pmc_id: PMC ID (e.g., "PMC544940", "PMC514704")
+
+        Returns:
+            Complete structured JSON with all PMC paper data
+        """
+        params = {
+            "pmc_id": pmc_id,
+            "type": "json"
+        }
+        return self._make_request(self.pmc_endpoint, params=params)

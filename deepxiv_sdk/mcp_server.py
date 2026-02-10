@@ -82,6 +82,46 @@ def search_papers(
 
 
 @mcp.tool()
+def get_paper_brief(arxiv_id: str) -> str:
+    """Get brief information about an arXiv paper (quick summary).
+
+    This is perfect for getting a quick overview without loading the full metadata.
+    Returns title, TLDR, keywords, publication date, and citation count.
+
+    Args:
+        arxiv_id: arXiv ID (e.g., "2409.05591", "2503.04975")
+
+    Returns:
+        Brief paper information including title, TLDR, keywords, citations
+    """
+    brief = _reader.brief(arxiv_id)
+
+    if not brief:
+        return f"Failed to get brief info for paper {arxiv_id}"
+
+    output = [f"Paper: {arxiv_id}\n"]
+    output.append(f"Title: {brief.get('title', 'No title')}\n")
+    output.append(f"PDF: {brief.get('src_url', 'N/A')}")
+    output.append(f"Published: {brief.get('publish_at', 'N/A')}")
+    output.append(f"Citations: {brief.get('citations', 0)}\n")
+
+    # Keywords
+    keywords = brief.get("keywords", [])
+    if keywords:
+        if isinstance(keywords, list):
+            output.append(f"Keywords: {', '.join(keywords)}\n")
+        else:
+            output.append(f"Keywords: {keywords}\n")
+
+    # TLDR
+    tldr = brief.get("tldr", "")
+    if tldr:
+        output.append(f"TLDR:\n{tldr}")
+
+    return "\n".join(output)
+
+
+@mcp.tool()
 def get_paper_metadata(arxiv_id: str) -> str:
     """Get metadata and section overview for an arXiv paper.
 
@@ -213,6 +253,79 @@ def get_paper_preview(arxiv_id: str) -> str:
         result += f"\n\n[Preview truncated. Total paper size: {total_chars} characters]"
 
     return result
+
+
+@mcp.tool()
+def get_pmc_metadata(pmc_id: str) -> str:
+    """Get metadata for a PMC (PubMed Central) paper.
+
+    Args:
+        pmc_id: PMC ID (e.g., "PMC544940", "PMC514704")
+
+    Returns:
+        PMC paper metadata including title, authors, abstract, DOI, and publication info
+    """
+    head = _reader.pmc_head(pmc_id)
+
+    if not head:
+        return f"Failed to get metadata for PMC paper {pmc_id}"
+
+    output = [f"PMC Paper: {pmc_id}\n"]
+    output.append(f"Title: {head.get('title', 'No title')}\n")
+
+    # DOI
+    doi = head.get("doi", "N/A")
+    output.append(f"DOI: {doi}\n")
+
+    # Authors
+    authors = head.get("authors", [])
+    if isinstance(authors, str):
+        authors = [a.strip() for a in authors.split(",")]
+
+    output.append(f"Authors ({len(authors)} total):")
+    for i, author in enumerate(authors[:10], 1):
+        if isinstance(author, dict):
+            name = author.get("name", "Unknown")
+            output.append(f"  {i}. {name}")
+        else:
+            output.append(f"  {i}. {author}")
+    if len(authors) > 10:
+        output.append(f"  ... and {len(authors) - 10} more authors")
+
+    # Categories and date
+    cats = head.get("categories", [])
+    if cats:
+        cats_str = ", ".join(cats) if isinstance(cats, list) else str(cats)
+        output.append(f"\nCategories: {cats_str}")
+    output.append(f"Published: {head.get('publish_at', 'N/A')}")
+
+    # Abstract
+    abstract = head.get("abstract", "No abstract")
+    output.append(f"\nAbstract:\n{abstract}")
+
+    return "\n".join(output)
+
+
+@mcp.tool()
+def get_pmc_full(pmc_id: str) -> str:
+    """Get the complete full content of a PMC paper in JSON format.
+
+    Note: This may return a large amount of data.
+    Consider using get_pmc_metadata first to check the paper info.
+
+    Args:
+        pmc_id: PMC ID (e.g., "PMC544940", "PMC514704")
+
+    Returns:
+        Full PMC paper content as JSON string
+    """
+    content = _reader.pmc_json(pmc_id)
+
+    if not content:
+        return f"Failed to get full content for PMC paper {pmc_id}"
+
+    import json
+    return json.dumps(content, indent=2)
 
 
 def create_server():
