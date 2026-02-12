@@ -33,7 +33,7 @@ class Agent:
         reader: Reader,
         model: str = "gpt-4",
         base_url: Optional[str] = None,
-        max_llm_calls: int = 20,
+        max_llm_calls: int = 5,
         max_time_seconds: int = 600,
         max_tokens: int = 4096,
         temperature: float = 0.7,

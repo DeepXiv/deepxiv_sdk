@@ -25,18 +25,20 @@ pip install deepxiv-sdk
 # With MCP server support
 pip install deepxiv-sdk[mcp]
 
-# With Agent support
+# With Agent support (includes OpenAI SDK)
 pip install deepxiv-sdk[agent]
 
 # Full install (all features)
 pip install deepxiv-sdk[all]
 ```
 
+**Note:** Agent requires `openai>=1.0.0` for LLM calls. Install with `[agent]` or `[all]` extras.
+
 ## Quick Start
 
 ### Step 1: Get Your Free API Token
 
-Visit [https://data.rag.ac.cn/register](https://data.rag.ac.cn/register) to get your free API token (1000 requests/day).
+Visit [https://data.rag.ac.cn/register](https://data.rag.ac.cn/register) to get your free API token (10000 requests/day).
 
 ### Step 2: Configure Your Token
 
@@ -74,9 +76,20 @@ deepxiv pmc PMC544940                       # Full JSON
 deepxiv pmc PMC544940 --head                # Metadata only
 deepxiv pmc PMC514704                       # Another example
 
+# Intelligent Agent (requires agent installation)
+deepxiv agent config                        # Configure LLM API first
+deepxiv agent query "What are the latest papers about agent memory?"
+# show reasoning process
+deepxiv agent query "Latest HLE scores" --max-turn 10 --verbose 
+
 # Start MCP server
 deepxiv serve
 ```
+
+**Agent Configuration:**
+- Config is saved to `~/.deepxiv_agent_config.json`
+- Supports environment variables: `DEEPXIV_AGENT_API_KEY`, `DEEPXIV_AGENT_BASE_URL`, `DEEPXIV_AGENT_MODEL`
+- Compatible with OpenAI, DeepSeek, OpenRouter, and other OpenAI-compatible APIs
 
 ### Python API
 
@@ -118,6 +131,13 @@ print(f"PMC Content: {len(str(pmc_full))} chars")
 
 ### Agent Usage
 
+The intelligent agent can search papers, read content, and answer questions using ReAct reasoning.
+
+
+
+
+#### Python API
+
 ```python
 import os
 from deepxiv_sdk import Reader, Agent
@@ -127,11 +147,20 @@ agent = Agent(
     api_key=os.getenv("OPENAI_API_KEY"),
     model="gpt-4",
     reader=reader,
-    print_process=True
+    max_llm_calls=20,  # Maximum reasoning turns
+    print_process=True  # Show reasoning steps
 )
 
 answer = agent.query("What are the latest papers about agent memory?")
 print(answer)
+
+# For DeepSeek or other APIs
+agent = Agent(
+    api_key=os.getenv("DEEPSEEK_API_KEY"),
+    base_url="https://api.deepseek.com",
+    model="deepseek-chat",
+    reader=reader
+)
 ```
 
 ## MCP Server Setup
@@ -221,10 +250,23 @@ The CLI automatically loads tokens from:
 
 ### Agent Methods
 
-- `query(question, reset_papers=False)`: Query the agent
-- `get_loaded_papers()`: Get loaded papers info
-- `reset_papers()`: Reset all loaded papers
-- `add_paper(arxiv_id)`: Add a paper to context
+- `query(question, reset_papers=False)`: Query the agent with a question
+- `get_loaded_papers()`: Get information about loaded papers
+- `reset_papers()`: Clear all loaded papers from context
+- `add_paper(arxiv_id)`: Manually add a paper to context
+
+### Agent Tools
+
+The agent has access to the following tools:
+
+| Tool | Description |
+|------|-------------|
+| `search_papers` | Search arXiv papers with filters |
+| `load_paper` | Load paper metadata and structure |
+| `read_section` | Read a specific section |
+| `get_full_paper` | Get complete paper content |
+| `get_paper_preview` | Get paper preview (~10k chars) |
+| `quick_preview` | Batch preview multiple papers (brief info only) |
 
 ## Examples
 

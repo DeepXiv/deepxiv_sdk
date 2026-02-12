@@ -179,6 +179,7 @@ def planning_node(state: AgentState, config: RunnableConfig) -> AgentState:
     configurable = config.get("configurable", {})
 
     max_time_seconds = configurable.get("max_time_seconds", 600)
+    max_llm_calls = configurable.get("max_llm_calls", 20)
     print_process = configurable.get("print_process", False)
 
     # Check time limit
@@ -190,6 +191,7 @@ def planning_node(state: AgentState, config: RunnableConfig) -> AgentState:
         }
 
     # Check LLM call limit
+    # If we're at 0, we should not continue - check_limits should have forced an answer
     if state["num_llm_calls_available"] <= 0:
         return {
             "prediction": "No answer found - exceeded call limit",
@@ -242,7 +244,6 @@ def planning_node(state: AgentState, config: RunnableConfig) -> AgentState:
     if print_process:
         print(f"\n{'='*80}")
         print(f"Round {state['round'] + 1}")
-        print(f"Response length: {len(content)} chars")
         print(f"Tool calls: {len(tool_calls) if tool_calls else 0}")
         print(f"{'='*80}\n")
 
@@ -338,6 +339,9 @@ def check_limits_node(state: AgentState, config: RunnableConfig) -> AgentState:
     max_llm_calls = configurable.get("max_llm_calls", 20)
     print_process = configurable.get("print_process", False)
 
+    if print_process:
+        print(f"\n🔍 Checking limits: round={state['round']}, max_llm_calls={max_llm_calls}, threshold={max_llm_calls - 2}")
+
     # Check if approaching limit
     if state["round"] >= max_llm_calls - 2:
         if print_process:
@@ -368,7 +372,10 @@ Wrap your final answer in <answer></answer> tags."""
             print_process=print_process
         )
 
-        new_messages = [{"role": "assistant", "content": content.strip()}]
+        new_messages = [
+            {"role": "user", "content": limit_message},
+            {"role": "assistant", "content": content.strip()}
+        ]
 
         if '<answer>' in content and '</answer>' in content:
             prediction = content.split('<answer>')[1].split('</answer>')[0].strip()
@@ -383,9 +390,13 @@ Wrap your final answer in <answer></answer> tags."""
             "prediction": prediction,
             "termination": termination,
             "status": state["status"] + ["answer"],
+            "round": state["round"] + 1,
+            "num_llm_calls_available": state["num_llm_calls_available"] - 1,
         }
 
-    return {}
+    return {
+        "status": state["status"]
+    }
 
 
 def router_node(state: AgentState) -> Literal["tool_call", "check_limits", "answer", "continue"]:
@@ -487,8 +498,8 @@ def create_react_graph() -> StateGraph:
         }
     )
 
-    # Tool call goes back to planning
-    workflow.add_edge("tool_call", "planning")
+    # Tool call goes to check_limits first
+    workflow.add_edge("tool_call", "check_limits")
 
     # Finalize is the end
     workflow.add_edge("finalize", END)

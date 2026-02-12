@@ -3,6 +3,7 @@ Tools for the ReAct agent to interact with arXiv papers.
 """
 import json
 from typing import Dict, Optional, List
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def get_tools_definition() -> List[Dict]:
@@ -142,6 +143,24 @@ def get_tools_definition() -> List[Dict]:
                         }
                     },
                     "required": ["arxiv_id"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "quick_preview",
+                "description": "Quickly fetch brief metadata for multiple papers concurrently. Returns title, TLDR, keywords, citations, and publication date for each paper. Does NOT include section information. Perfect for scanning multiple papers to decide which ones to investigate in detail.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "arxiv_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of arXiv IDs to fetch brief information for (e.g., ['2503.04975', '2512.20651'])"
+                        }
+                    },
+                    "required": ["arxiv_ids"]
                 }
             }
         }
@@ -354,11 +373,11 @@ class ToolExecutor:
         output.append(f"\nAbstract:\n{paper['abstract']}\n")
 
         # Show section TLDRs
-        sections = paper.get("sections") or {}
+        sections = paper.get("sections") or []
         if sections:
             output.append("Available Sections (with TLDRs):")
-            sorted_sections = sorted(sections.items(), key=lambda x: x[1].get("idx", 999))
-            for section_name, section_info in sorted_sections:
+            for section_info in sections:
+                section_name = section_info.get('name', 'N/A')
                 tldr = section_info.get('tldr', 'N/A')
                 tokens = section_info.get('token_count', 0)
                 output.append(f"  - {section_name} ({tokens} tokens):")
@@ -396,13 +415,16 @@ class ToolExecutor:
         paper = state_papers[arxiv_id]
 
         # Check if sections are available
-        sections = paper.get("sections") or {}
+        sections = paper.get("sections") or []
         if not sections:
             return f"Error: Section information is not available for paper {arxiv_id}. This paper may not have structured sections."
 
+        # Extract section names from list of dicts
+        section_names = [s.get('name', '') for s in sections if s.get('name')]
+        
         # Check if section exists
-        if section_name not in sections:
-            available = ", ".join(sections.keys())
+        if section_name not in section_names:
+            available = ", ".join(section_names)
             return f"Error: Section '{section_name}' not found in paper {arxiv_id}. Available sections: {available}"
 
         # Check cache
@@ -488,6 +510,85 @@ class ToolExecutor:
 
         return "\n".join(output)
 
+    def quick_preview(
+        self,
+        arxiv_ids: List[str],
+        max_workers: int = 5
+    ) -> str:
+        """
+        Quickly fetch brief metadata for multiple papers concurrently.
+
+        Args:
+            arxiv_ids: List of arXiv IDs
+            max_workers: Maximum number of concurrent workers
+
+        Returns:
+            Formatted brief information for all papers
+        """
+        if not arxiv_ids:
+            return "Error: No arXiv IDs provided."
+
+        def fetch_brief(arxiv_id: str) -> Dict:
+            """Fetch brief info for a single paper."""
+            try:
+                brief = self.reader.brief(arxiv_id)
+                if brief:
+                    return {"arxiv_id": arxiv_id, "data": brief, "error": None}
+                else:
+                    return {"arxiv_id": arxiv_id, "data": None, "error": "Failed to fetch"}
+            except Exception as e:
+                return {"arxiv_id": arxiv_id, "data": None, "error": str(e)}
+
+        # Fetch all papers concurrently
+        results = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_id = {executor.submit(fetch_brief, arxiv_id): arxiv_id for arxiv_id in arxiv_ids}
+            for future in as_completed(future_to_id):
+                results.append(future.result())
+
+        # Sort results by original order
+        results_dict = {r["arxiv_id"]: r for r in results}
+        sorted_results = [results_dict[arxiv_id] for arxiv_id in arxiv_ids if arxiv_id in results_dict]
+
+        # Format output
+        output = [f"=== Quick Preview of {len(arxiv_ids)} Papers ===\n"]
+
+        for i, result in enumerate(sorted_results, 1):
+            arxiv_id = result["arxiv_id"]
+            
+            if result["error"]:
+                output.append(f"{i}. arXiv ID: {arxiv_id}")
+                output.append(f"   ❌ Error: {result['error']}\n")
+                continue
+
+            data = result["data"]
+            title = data.get("title", "No title")
+            tldr = data.get("tldr", "No TLDR available")
+            keywords = data.get("keywords", [])
+            citations = data.get("citations", 0)
+            publish_at = data.get("publish_at", "N/A")
+            src_url = data.get("src_url", "")
+
+            output.append(f"{i}. {title}")
+            output.append(f"   arXiv ID: {arxiv_id}")
+            output.append(f"   Citations: {citations} | Published: {publish_at}")
+            
+            if keywords:
+                keywords_str = ', '.join(keywords[:5])
+                output.append(f"   Keywords: {keywords_str}")
+            
+            output.append(f"   TLDR: {tldr}")
+            
+            if src_url:
+                output.append(f"   URL: {src_url}")
+            
+            output.append("")
+
+        success_count = sum(1 for r in sorted_results if not r["error"])
+        output.append(f"Successfully fetched: {success_count}/{len(arxiv_ids)} papers")
+
+        return "\n".join(output)
+
     def execute_tool_call(
         self,
         tool_name: str,
@@ -557,6 +658,10 @@ class ToolExecutor:
             elif tool_name == "get_paper_preview":
                 arxiv_id = tool_args.get("arxiv_id", "")
                 return self.get_paper_preview(arxiv_id)
+
+            elif tool_name == "quick_preview":
+                arxiv_ids = tool_args.get("arxiv_ids", [])
+                return self.quick_preview(arxiv_ids)
 
             else:
                 return f"Error: Unknown tool '{tool_name}'"

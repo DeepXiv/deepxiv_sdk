@@ -7,6 +7,7 @@ import sys
 import click
 from pathlib import Path
 from .reader import Reader
+from .agent import Agent
 
 # Try to load .env file if python-dotenv is available
 try:
@@ -52,6 +53,55 @@ def handle_auth_error():
     click.echo("   2. Register and copy your token", err=True)
     click.echo("   3. Run: deepxiv config\n", err=True)
     click.echo("💡 Or set it directly: export DEEPXIV_TOKEN=your_token", err=True)
+
+
+def get_agent_config():
+    """Get agent LLM configuration from environment or config file."""
+    config = {}
+    
+    # Try environment variables first
+    config["api_key"] = os.environ.get("DEEPXIV_AGENT_API_KEY")
+    config["base_url"] = os.environ.get("DEEPXIV_AGENT_BASE_URL")
+    config["model"] = os.environ.get("DEEPXIV_AGENT_MODEL")
+    
+    # If not in env, try to load from config file
+    if not config["api_key"]:
+        config_file = Path.home() / ".deepxiv_agent_config.json"
+        if config_file.exists():
+            try:
+                with open(config_file, "r") as f:
+                    file_config = json.load(f)
+                    config["api_key"] = config["api_key"] or file_config.get("api_key")
+                    config["base_url"] = config["base_url"] or file_config.get("base_url")
+                    config["model"] = config["model"] or file_config.get("model", "gpt-4")
+            except Exception:
+                pass
+    return config
+
+
+def save_agent_config(api_key, base_url=None, model="gpt-4"):
+    """Save agent LLM configuration to config file."""
+    config_file = Path.home() / ".deepxiv_agent_config.json"
+    config = {
+        "api_key": api_key,
+        "base_url": base_url,
+        "model": model
+    }
+    
+    with open(config_file, "w") as f:
+        json.dump(config, f, indent=2)
+    
+    click.echo(f"✅ Agent configuration saved to {config_file}")
+
+
+def check_agent_config():
+    """Check if agent is configured and warn if not."""
+    config = get_agent_config()
+    if not config.get("api_key"):
+        click.echo("⚠️  Warning: Agent LLM API not configured.", err=True)
+        click.echo("   Please configure it with: deepxiv agent config\n", err=True)
+        return False
+    return True
 
 
 @click.group()
@@ -432,6 +482,138 @@ ENVIRONMENT:
 For more information, visit: https://data.rag.ac.cn
 """
     click.echo(help_text)
+
+
+@main.group()
+def agent():
+    """Intelligent agent for paper research.
+    
+    Use the agent to ask questions about papers, search and analyze research.
+    
+    Example:
+        deepxiv agent query "What are the latest papers about agent memory?"
+        deepxiv agent config  # Configure LLM API first
+    """
+    pass
+
+
+@agent.command(name="query")
+@click.argument("query")
+@click.option("--token", "-t", default=None, envvar="DEEPXIV_TOKEN", help="DeepXiv API token")
+@click.option("--max-turn", default=20, type=int, help="Maximum number of reasoning turns (default: 20)")
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed reasoning process")
+@click.option("--api-key", default=None, envvar="DEEPXIV_AGENT_API_KEY", help="LLM API key (overrides config)")
+@click.option("--base-url", default=None, envvar="DEEPXIV_AGENT_BASE_URL", help="LLM API base URL (overrides config)")
+@click.option("--model", default=None, envvar="DEEPXIV_AGENT_MODEL", help="Model name (overrides config)")
+def agent_query(query, token, max_turn, verbose, api_key, base_url, model):
+    """Ask the agent a question about papers.
+    
+    The agent can search papers, read content, and provide intelligent answers.
+    
+    Example:
+        deepxiv agent query "What are the latest papers about agent memory?"
+        deepxiv agent query "Compare transformer variants" --max-turn 10 --verbose
+    """
+    
+    # Run the query logic (same as agent_query)
+    # Check DeepXiv token
+    token = get_token(token)
+    if not check_token_and_warn(token):
+        sys.exit(1)
+    
+    # Get LLM config from options or saved config
+    llm_config = get_agent_config()
+    # Override with command-line options if provided
+    if api_key:
+        llm_config["api_key"] = api_key
+    if base_url:
+        llm_config["base_url"] = base_url
+    if model:
+        llm_config["model"] = model
+    
+    # Check if LLM is configured
+    if not llm_config.get("api_key"):
+        click.echo("\n❌ Agent LLM API not configured.\n", err=True)
+        click.echo("Please configure it first:", err=True)
+        click.echo("   deepxiv agent config\n", err=True)
+        click.echo("Or set environment variables:", err=True)
+        click.echo("   export DEEPXIV_AGENT_API_KEY=your_key", err=True)
+        sys.exit(1)
+    
+    # Initialize reader
+    reader = Reader(token=token)
+    
+    # Initialize agent
+    try:
+        agent_instance = Agent(
+            api_key=llm_config["api_key"],
+            reader=reader,
+            model=llm_config.get("model", "gpt-4"),
+            base_url=llm_config.get("base_url"),
+            max_llm_calls=max_turn,
+            print_process=verbose,
+            stream=verbose
+        )
+        
+        # Run query
+        click.echo(f"\n🤖 Agent is thinking...\n")
+        answer = agent_instance.query(query)
+        
+        # Print answer
+        click.echo("\n" + "="*80)
+        click.echo("📝 Answer:")
+        click.echo("="*80)
+        click.echo(answer)
+        click.echo("="*80 + "\n")
+        
+    except Exception as e:
+        click.echo(f"\n❌ Error: {e}", err=True)
+        sys.exit(1)
+
+
+@agent.command(name="config")
+@click.option("--api-key", default=None, help="LLM API key")
+@click.option("--base-url", default=None, help="LLM API base URL (for OpenAI-compatible APIs)")
+@click.option("--model", default=None, help="Model name (default: gpt-4)")
+def agent_config(api_key, base_url, model):
+    """Configure LLM API for the agent.
+    
+    Example:
+        deepxiv agent config                                    # Interactive configuration
+        deepxiv agent config --api-key YOUR_KEY                 # OpenAI
+        deepxiv agent config --api-key KEY --base-url https://api.deepseek.com --model deepseek-chat
+    """
+    # Get inputs interactively if not provided
+    if not api_key:
+        click.echo("🤖 Configure LLM API for deepxiv agent\n")
+        api_key = click.prompt("Please enter your LLM API key", hide_input=True)
+    
+    if not api_key or not api_key.strip():
+        click.echo("Error: API key cannot be empty", err=True)
+        sys.exit(1)
+    
+    api_key = api_key.strip()
+    
+    # Optional: ask for base_url if not provided
+    if base_url is None:
+        click.echo("\nAPI Base URL (leave empty for OpenAI)")
+        click.echo("Examples: https://api.deepseek.com, https://api.openai.com/v1")
+        base_url_input = click.prompt("Base URL", default="", show_default=False)
+        base_url = base_url_input.strip() if base_url_input.strip() else None
+    
+    # Optional: ask for model if not provided
+    if model is None:
+        click.echo("\nModel name (e.g., gpt-4, deepseek-chat, gpt-4-turbo)")
+        model = click.prompt("Model", default="gpt-4")
+    
+    # Save configuration
+    save_agent_config(api_key, base_url, model)
+    
+    click.echo("\n✅ Configuration saved!")
+    click.echo(f"   Model: {model}")
+    if base_url:
+        click.echo(f"   Base URL: {base_url}")
+    click.echo("\n💡 You can now use: deepxiv agent \"your question\"")
 
 
 @main.command()
