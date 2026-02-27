@@ -6,6 +6,8 @@ A Python SDK for accessing arXiv papers with CLI and MCP server support.
 
 **📚 API Documentation:** [https://data.rag.ac.cn/api/docs](https://data.rag.ac.cn/api/docs)
 
+[![Watch Demo](https://img.shields.io/badge/YouTube-Watch%20Demo-red)](https://youtu.be/atr71CbQybM)
+
 ## Features
 
 - 🔍 **Paper Search**: Search for arXiv papers using hybrid search (BM25 + Vector)
