@@ -80,7 +80,7 @@ deepxiv pmc PMC514704                       # Another example
 deepxiv agent config                        # Configure LLM API first
 deepxiv agent query "What are the latest papers about agent memory?"
 # show reasoning process
-deepxiv agent query "Latest HLE scores" --max-turn 10 --verbose 
+deepxiv agent query 'What are the key ideas in the MemGPT paper?' --max-turn 5 --verbose
 
 # Start MCP server
 deepxiv serve
