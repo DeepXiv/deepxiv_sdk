@@ -10,6 +10,22 @@ from .graph import create_react_graph, create_initial_state
 from .tools import ToolExecutor
 from .state import AgentState
 
+import tiktoken
+
+encoding = tiktoken.get_encoding("o200k_base")
+
+def num_tokens_from_messages(messages, tokens_per_message=3, tokens_per_name=1):
+    num_tokens = 0
+    for message in messages:
+        num_tokens += tokens_per_message
+        for key, value in message.items():
+            if not isinstance(value, str):
+                continue
+            num_tokens += len(encoding.encode(value))
+            if key == "name":
+                num_tokens += tokens_per_name
+    num_tokens += 3
+    return num_tokens   
 
 class Agent:
     """
@@ -33,7 +49,7 @@ class Agent:
         reader: Reader,
         model: str = "gpt-4",
         base_url: Optional[str] = None,
-        max_llm_calls: int = 5,
+        max_llm_calls: int = 20,
         max_time_seconds: int = 600,
         max_tokens: int = 4096,
         temperature: float = 0.7,
@@ -131,12 +147,13 @@ class Agent:
 
             prediction = final_state.get("prediction", "No answer found.")
             termination = final_state.get("termination", "unknown")
-
+            total_token = num_tokens_from_messages(final_state.get("messages", []))
             if self.print_process:
                 print(f"\n{'='*80}")
                 print(f"✅ Completed: {termination}")
                 print(f"📊 Rounds: {final_state.get('round', 0)}")
                 print(f"📄 Papers loaded: {len(self.persistent_papers)}")
+                print(f"🔢 Total tokens: {total_token}")
                 print(f"{'='*80}\n")
 
             return prediction

@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 test_func.py
 test_agent.py
+demo
 upload.sh
 # C extensions
 *.so
