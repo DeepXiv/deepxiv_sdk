@@ -4,10 +4,12 @@ Command-line interface for deepxiv.
 import json
 import os
 import sys
+import random
 import click
+import requests
 from pathlib import Path
+from uuid import uuid4
 from .reader import Reader
-from .agent import Agent
 
 # Try to load .env file if python-dotenv is available
 try:
@@ -26,11 +28,111 @@ except ImportError:
     pass
 
 
+DEFAULT_BASE_URL = "https://data.rag.ac.cn"
+REGISTER_ENDPOINT = f"{DEFAULT_BASE_URL}/api/register"
+DEFAULT_DAILY_LIMIT = 10000
+DEFAULT_VERIFICATION_CODE = "147258"
+
+
 def get_token(token_option):
     """Get token from option or environment variable."""
     if token_option:
         return token_option
     return os.environ.get("DEEPXIV_TOKEN")
+
+
+def _upsert_env_value(env_file: Path, key: str, value: str):
+    """Insert or update a key=value pair in an env file."""
+    env_line = f"{key}={value}\n"
+
+    if env_file.exists():
+        with open(env_file, "r") as f:
+            lines = f.readlines()
+
+        key_exists = False
+        for i, line in enumerate(lines):
+            if line.strip().startswith(f"{key}="):
+                lines[i] = env_line
+                key_exists = True
+                break
+
+        if not key_exists:
+            lines.append(env_line)
+
+        with open(env_file, "w") as f:
+            f.writelines(lines)
+    else:
+        with open(env_file, "w") as f:
+            f.write(env_line)
+
+
+def save_token(token: str, is_global: bool = True) -> Path:
+    """Persist DEEPXIV_TOKEN to the selected env file."""
+    env_file = Path.home() / ".env" if is_global else Path.cwd() / ".env"
+    _upsert_env_value(env_file, "DEEPXIV_TOKEN", token)
+    os.environ["DEEPXIV_TOKEN"] = token
+    return env_file
+
+
+def generate_registration_payload() -> dict:
+    """Generate random registration data for automatic token provisioning."""
+    suffix = uuid4().hex[:10]
+    telephone = "".join(str(random.randint(0, 9)) for _ in range(10))
+    return {
+        "name": f"deepxiv_{suffix}",
+        "email": f"{suffix}@example.com",
+        "country_code": "+1",
+        "telephone": telephone,
+        "verification_code": DEFAULT_VERIFICATION_CODE,
+        "daily_limit": DEFAULT_DAILY_LIMIT,
+    }
+
+
+def auto_register_token() -> tuple[str | None, int | None]:
+    """Automatically register for a token and persist it."""
+    payload = generate_registration_payload()
+
+    try:
+        response = requests.post(REGISTER_ENDPOINT, json=payload, timeout=30)
+        response.raise_for_status()
+        result = response.json()
+    except requests.exceptions.RequestException as e:
+        click.echo(f"\n❌ Failed to auto-register DEEPXIV token: {e}\n", err=True)
+        return None, None
+    except ValueError as e:
+        click.echo(f"\n❌ Failed to parse registration response: {e}\n", err=True)
+        return None, None
+
+    if not result.get("success"):
+        click.echo("\n❌ Failed to auto-register DEEPXIV token.\n", err=True)
+        message = result.get("message", "Unknown error")
+        click.echo(f"Server message: {message}\n", err=True)
+        return None, None
+
+    data = result.get("data", {})
+    token = data.get("token")
+    daily_limit = data.get("daily_limit", DEFAULT_DAILY_LIMIT)
+    if not token:
+        click.echo("\n❌ Registration succeeded but no token was returned.\n", err=True)
+        return None, None
+
+    env_file = save_token(token, is_global=True)
+    click.echo(f"已自动申请 token，并已保存到 {env_file}")
+    click.echo(f"当前 daily limit: {daily_limit}\n")
+    return token, daily_limit
+
+
+def ensure_token(token_option=None, auto_create: bool = True):
+    """Get an existing token or auto-create one on first use."""
+    token = get_token(token_option)
+    if token:
+        return token
+
+    if not auto_create:
+        return None
+
+    token, _ = auto_register_token()
+    return token
 
 
 def check_token_and_warn(token):
@@ -48,11 +150,9 @@ def handle_auth_error():
     """Handle authentication errors with helpful message."""
     click.echo("\n❌ Authentication failed (401 Unauthorized)\n", err=True)
     click.echo("Your API token is missing or invalid.\n", err=True)
-    click.echo("📝 To get a free token:", err=True)
-    click.echo("   1. Visit: https://data.rag.ac.cn/register", err=True)
-    click.echo("   2. Register and copy your token", err=True)
-    click.echo("   3. Run: deepxiv config\n", err=True)
-    click.echo("💡 Or set it directly: export DEEPXIV_TOKEN=your_token", err=True)
+    click.echo("Try running any deepxiv command again to auto-register a new token.", err=True)
+    click.echo("Or set it directly: export DEEPXIV_TOKEN=your_token", err=True)
+    click.echo("Use `deepxiv token` to inspect the current token.\n", err=True)
 
 
 def get_agent_config():
@@ -92,6 +192,7 @@ def save_agent_config(api_key, base_url=None, model="gpt-4"):
         json.dump(config, f, indent=2)
     
     click.echo(f"✅ Agent configuration saved to {config_file}")
+    click.echo("   This file stays on your local machine only.")
 
 
 def check_agent_config():
@@ -134,9 +235,10 @@ def search(query, token, limit, mode, output_format, categories, min_citations, 
         deepxiv search "transformer" --mode bm25 --format json
         deepxiv search "LLM" --token YOUR_TOKEN
     """
-    # Warn if token not configured
-    check_token_and_warn(token)
-    
+    token = ensure_token(token)
+    if not token:
+        sys.exit(1)
+
     reader = Reader(token=token)
 
     # Parse categories
@@ -201,9 +303,10 @@ def paper(arxiv_id, token, output_format, section, preview, head, brief, raw):
         deepxiv paper 2409.05591 --head
         deepxiv paper 2409.05591 --raw
     """
-    # Warn if token not configured
-    check_token_and_warn(token)
-    
+    token = ensure_token(token)
+    if not token:
+        sys.exit(1)
+
     reader = Reader(token=token)
 
     if head:
@@ -333,37 +436,11 @@ def config(token, is_global):
     else:
         env_file = Path.cwd() / ".env"
     
-    env_line = f"DEEPXIV_TOKEN={token}\n"
-    
-    # Check if .env file exists
-    if env_file.exists():
-        # Read existing content
-        with open(env_file, "r") as f:
-            lines = f.readlines()
-        
-        # Check if DEEPXIV_TOKEN already exists
-        token_exists = False
-        for i, line in enumerate(lines):
-            if line.strip().startswith("DEEPXIV_TOKEN="):
-                lines[i] = env_line
-                token_exists = True
-                break
-        
-        # If token doesn't exist, append it
-        if not token_exists:
-            lines.append(env_line)
-        
-        # Write back to file
-        with open(env_file, "w") as f:
-            f.writelines(lines)
-        
-        action = "updated" if token_exists else "added"
-        click.echo(f"✓ DEEPXIV_TOKEN {action} in {env_file}")
-    else:
-        # Create new .env file
-        with open(env_file, "w") as f:
-            f.write(env_line)
-        click.echo(f"✓ Created {env_file} with DEEPXIV_TOKEN")
+    existed = env_file.exists() and f"DEEPXIV_TOKEN=" in env_file.read_text()
+    _upsert_env_value(env_file, "DEEPXIV_TOKEN", token)
+    os.environ["DEEPXIV_TOKEN"] = token
+    action = "updated" if existed else "added"
+    click.echo(f"✓ DEEPXIV_TOKEN {action} in {env_file}")
     
     click.echo(f"\n✅ Token saved successfully!")
     click.echo(f"   The deepxiv CLI will automatically load it from {env_file}")
@@ -386,9 +463,10 @@ def pmc(pmc_id, token, output_format, head):
         deepxiv pmc PMC544940 --head
         deepxiv pmc PMC514704 --token YOUR_TOKEN
     """
-    # Warn if token not configured
-    check_token_and_warn(token)
-    
+    token = ensure_token(token)
+    if not token:
+        sys.exit(1)
+
     reader = Reader(token=token)
 
     if head:
@@ -418,7 +496,8 @@ def help():
 deepxiv - Access arXiv papers from the command line
 
 CONFIGURATION:
-  deepxiv config                    Configure your DEEPXIV_TOKEN
+  deepxiv config                    Configure your DEEPXIV_TOKEN manually
+  deepxiv token                     Show the current token and support contact
 
 SEARCH:
   deepxiv search "query"            Search for papers
@@ -471,11 +550,11 @@ EXAMPLES:
   deepxiv pmc PMC514704
 
 ENVIRONMENT:
-  Get your free API token:
-    🌐 Register at: https://data.rag.ac.cn/register
+  If DEEPXIV_TOKEN is missing, deepxiv will auto-register one on first use.
   
   Set DEEPXIV_TOKEN via:
     - Config command: deepxiv config (recommended)
+    - Inspect current token: deepxiv token
     - Environment variable: export DEEPXIV_TOKEN=your_token
     - Command option: --token YOUR_TOKEN
 
@@ -492,7 +571,7 @@ def agent():
     
     Example:
         deepxiv agent query "What are the latest papers about agent memory?"
-        deepxiv agent config  # Configure LLM API first
+        deepxiv agent config  # Configure LLM API locally first
     """
     pass
 
@@ -517,8 +596,8 @@ def agent_query(query, token, max_turn, verbose, api_key, base_url, model):
     
     # Run the query logic (same as agent_query)
     # Check DeepXiv token
-    token = get_token(token)
-    if not check_token_and_warn(token):
+    token = ensure_token(token)
+    if not token:
         sys.exit(1)
     
     # Get LLM config from options or saved config
@@ -544,6 +623,18 @@ def agent_query(query, token, max_turn, verbose, api_key, base_url, model):
     reader = Reader(token=token)
     
     # Initialize agent
+    try:
+        from .agent import Agent
+    except ImportError as e:
+        click.echo("\n❌ Agent dependencies are not installed.\n", err=True)
+        click.echo("The `deepxiv agent` command requires optional agent packages.", err=True)
+        click.echo("Missing dependency details:", err=True)
+        click.echo(f"   {e}", err=True)
+        click.echo("\nInstall the missing packages and try again.", err=True)
+        click.echo("If `langgraph` is missing, for example:", err=True)
+        click.echo("   pip install langgraph langchain-core", err=True)
+        sys.exit(1)
+
     try:
         agent_instance = Agent(
             api_key=llm_config["api_key"],
@@ -579,13 +670,14 @@ def agent_config(api_key, base_url, model):
     """Configure LLM API for the agent.
     
     Example:
-        deepxiv agent config                                    # Interactive configuration
+        deepxiv agent config                                    # Interactive local configuration
         deepxiv agent config --api-key YOUR_KEY                 # OpenAI
         deepxiv agent config --api-key KEY --base-url https://api.deepseek.com --model deepseek-chat
     """
     # Get inputs interactively if not provided
     if not api_key:
         click.echo("🤖 Configure LLM API for deepxiv agent\n")
+        click.echo("This configuration is stored locally on this machine only.\n")
         api_key = click.prompt("Please enter your LLM API key", hide_input=True)
     
     if not api_key or not api_key.strip():
@@ -613,6 +705,7 @@ def agent_config(api_key, base_url, model):
     click.echo(f"   Model: {model}")
     if base_url:
         click.echo(f"   Base URL: {base_url}")
+    click.echo("   Stored locally only in ~/.deepxiv_agent_config.json")
     click.echo("\n💡 You can now use: deepxiv agent \"your question\"")
 
 
@@ -636,5 +729,185 @@ def serve(transport):
     server.run(transport=transport)
 
 
+@main.command(name="token")
+@click.option("--token", "-t", default=None, envvar="DEEPXIV_TOKEN", help="API token (or set DEEPXIV_TOKEN env var)")
+def show_token(token):
+    """Show the current DEEPXIV token and support contact."""
+    token = ensure_token(token)
+    if not token:
+        sys.exit(1)
+
+    click.echo(f"Current DEEPXIV_TOKEN: {token}\n")
+    click.echo("If you need a higher daily limit, email your name, email, and telephone to tommy@chien.io.")
+
+
+@main.command()
+@click.option("--token", "-t", default=None, envvar="DEEPXIV_TOKEN", help="API token")
+def health(token):
+    """Check API health and token validity.
+
+    This command verifies:
+    - API server connectivity
+    - Token validity (if provided)
+    - Free test papers availability
+    """
+    click.echo("🏥 Checking deepxiv API health...\n")
+
+    # Check API connectivity
+    click.echo("1️⃣  Checking API connectivity...")
+    try:
+        response = requests.get(f"{DEFAULT_BASE_URL}/api/docs", timeout=10)
+        if response.status_code == 200:
+            click.echo("   ✅ API server is reachable\n")
+        else:
+            click.echo(f"   ⚠️  API returned status {response.status_code}\n")
+    except requests.exceptions.Timeout:
+        click.echo("   ❌ API server is unreachable (timeout)\n")
+        sys.exit(1)
+    except requests.exceptions.ConnectionError:
+        click.echo("   ❌ Cannot connect to API (connection error)\n")
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"   ❌ Error: {e}\n")
+        sys.exit(1)
+
+    # Check token validity
+    if token:
+        click.echo("2️⃣  Checking token validity...")
+        reader = Reader(token=token)
+        try:
+            # Try to access a free test paper
+            result = reader.brief("2409.05591")
+            if result:
+                click.echo("   ✅ Token is valid\n")
+            else:
+                click.echo("   ⚠️  Token check inconclusive\n")
+        except Exception as e:
+            click.echo(f"   ❌ Token is invalid: {str(e)[:60]}\n")
+            sys.exit(1)
+    else:
+        click.echo("2️⃣  Token not provided (skipped)\n")
+
+    # Check free papers
+    click.echo("3️⃣  Checking free test papers...")
+    reader = Reader(token=token)
+    test_papers = {
+        "arxiv": "2409.05591",
+        "pmc": "PMC544940"
+    }
+
+    try:
+        brief = reader.brief(test_papers["arxiv"])
+        if brief:
+            click.echo(f"   ✅ arXiv test paper available: {test_papers['arxiv']}\n")
+        else:
+            click.echo(f"   ⚠️  Cannot access arXiv test paper\n")
+    except Exception as e:
+        click.echo(f"   ⚠️  arXiv test paper error: {str(e)[:40]}\n")
+
+    click.echo("=" * 60)
+    click.echo("✅ Health check completed!")
+    click.echo("=" * 60)
+
+
+@main.command()
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
+def debug(verbose):
+    """Print debug information and environment settings.
+
+    Useful for troubleshooting configuration issues.
+    """
+    import logging
+
+    click.echo("🐛 Debug Information\n")
+
+    # Python and package info
+    click.echo("System Information:")
+    click.echo(f"  Python Version: {sys.version}")
+    click.echo(f"  Platform: {sys.platform}\n")
+
+    # deepxiv version
+    from . import __version__
+    click.echo(f"deepxiv-sdk Version: {__version__}\n")
+
+    # Dependencies
+    click.echo("Installed Features:")
+    try:
+        import mcp
+        click.echo("  ✅ MCP Server support (mcp installed)")
+    except ImportError:
+        click.echo("  ❌ MCP Server support (install with: pip install deepxiv-sdk[mcp])")
+
+    try:
+        import langgraph
+        click.echo("  ✅ Agent support (langgraph installed)")
+    except ImportError:
+        click.echo("  ❌ Agent support (install with: pip install deepxiv-sdk[agent])")
+
+    try:
+        import dotenv
+        click.echo("  ✅ .env file support (python-dotenv installed)")
+    except ImportError:
+        click.echo("  ⚠️  .env file support (optional, install with: pip install python-dotenv)")
+
+    click.echo()
+
+    # Environment variables
+    click.echo("Environment Variables:")
+    deepxiv_token = os.environ.get("DEEPXIV_TOKEN")
+    if deepxiv_token:
+        click.echo(f"  ✅ DEEPXIV_TOKEN is set")
+    else:
+        click.echo(f"  ⚠️  DEEPXIV_TOKEN is not set (will auto-register on first use)")
+
+    if os.environ.get("DEEPXIV_AGENT_API_KEY"):
+        click.echo(f"  ✅ DEEPXIV_AGENT_API_KEY is set")
+    else:
+        click.echo(f"  ⚠️  DEEPXIV_AGENT_API_KEY is not set (required for agent)")
+
+    click.echo()
+
+    # Configuration files
+    click.echo("Configuration Files:")
+    home_env = Path.home() / ".env"
+    if home_env.exists():
+        click.echo(f"  ✅ ~/.env exists")
+        if verbose:
+            # Show non-secret values
+            with open(home_env) as f:
+                for line in f:
+                    if "=" in line:
+                        key, _ = line.split("=", 1)
+                        if key.strip() and not any(secret in key for secret in ["TOKEN", "KEY", "SECRET"]):
+                            click.echo(f"     {key.strip()}: (hidden)")
+    else:
+        click.echo(f"  ⚠️  ~/.env does not exist (tokens will be saved here on first use)")
+
+    agent_config = Path.home() / ".deepxiv_agent_config.json"
+    if agent_config.exists():
+        click.echo(f"  ✅ Agent config exists at ~/.deepxiv_agent_config.json")
+    else:
+        click.echo(f"  ⚠️  Agent config does not exist (run 'deepxiv agent config' to create)")
+
+    click.echo()
+
+    # Enable logging if verbose
+    if verbose:
+        click.echo("Enabling verbose logging...\n")
+        logging.basicConfig(level=logging.DEBUG)
+        logger = logging.getLogger("deepxiv_sdk")
+        logger.setLevel(logging.DEBUG)
+
+        # Test API connectivity with logging
+        click.echo("Making test API request with debug logging...\n")
+        reader = Reader(token=deepxiv_token)
+        try:
+            result = reader.brief("2409.05591")
+            click.echo("\n✅ Test request successful")
+        except Exception as e:
+            click.echo(f"\n❌ Test request failed: {e}")
+
+
 if __name__ == "__main__":
     main()
+

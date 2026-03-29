@@ -15,11 +15,12 @@ def main():
     
     # Search for papers
     query = "agent memory"
-    results = reader.search(query, top_k=5)
+    results = reader.search(query, size=5)
     
     if results:
-        print(f"\nFound {len(results)} papers for '{query}':\n")
-        for i, paper in enumerate(results, 1):
+        papers = results.get("results", [])
+        print(f"\nFound {len(papers)} papers for '{query}':\n")
+        for i, paper in enumerate(papers, 1):
             print(f"{i}. {paper.get('title', 'No title')}")
             print(f"   arXiv ID: {paper.get('arxiv_id', 'Unknown')}")
             print(f"   Abstract: {paper.get('abstract', 'No abstract')[:150]}...")

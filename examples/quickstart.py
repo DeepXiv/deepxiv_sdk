@@ -7,11 +7,11 @@ from deepxiv_sdk import Reader, Agent
 
 def main():
     # Step 1: Set up your API tokens
-    ARXIV_TOKEN = os.getenv("ARXIV_API_TOKEN", "your_arxiv_token_here")
+    DEEPXIV_TOKEN = os.getenv("DEEPXIV_TOKEN", "your_deepxiv_token_here")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "your_openai_key_here")
     
     # Step 2: Initialize the reader
-    reader = Reader(token=ARXIV_TOKEN)
+    reader = Reader(token=DEEPXIV_TOKEN)
     
     # Step 3: Initialize the agent
     agent = Agent(

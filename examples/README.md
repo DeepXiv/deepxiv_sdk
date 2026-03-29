@@ -1,6 +1,6 @@
 # Examples
 
-This directory contains example scripts demonstrating how to use py1stauthor.
+This directory contains example scripts demonstrating how to use deepxiv-sdk.
 
 ## Quick Start
 
@@ -35,7 +35,9 @@ This directory contains example scripts demonstrating how to use py1stauthor.
 1. Set up your API tokens as environment variables:
 
 ```bash
-export ARXIV_API_TOKEN="your_arxiv_token"
+# deepxiv CLI auto-registers DEEPXIV_TOKEN on first use and saves it to ~/.env
+# You can also set it manually if needed:
+export DEEPXIV_TOKEN="your_deepxiv_token"
 export OPENAI_API_KEY="your_openai_key"
 # Or for DeepSeek:
 export DEEPSEEK_API_KEY="your_deepseek_key"
@@ -44,7 +46,7 @@ export DEEPSEEK_API_KEY="your_deepseek_key"
 2. Install the package:
 
 ```bash
-pip install py1stauthor[all]
+pip install deepxiv-sdk[all]
 ```
 
 3. Run an example:

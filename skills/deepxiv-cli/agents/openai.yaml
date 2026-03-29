@@ -1,0 +1,4 @@
+version: 1
+display_name: DeepXiv CLI
+short_description: Search papers and read arXiv or PMC content with the local deepxiv CLI.
+default_prompt: Use the local deepxiv CLI to search papers, inspect paper metadata or sections, check the configured token, or run the optional deepxiv agent.

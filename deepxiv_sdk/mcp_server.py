@@ -1,9 +1,16 @@
 """
 MCP (Model Context Protocol) server for deepxiv.
+Provides tools for searching papers, accessing metadata, and reading content.
 """
 import os
+import json
+import logging
+from typing import Optional
 from mcp.server.fastmcp import FastMCP
-from .reader import Reader
+from .reader import Reader, APIError, AuthenticationError, RateLimitError
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Create the MCP server
 mcp = FastMCP("deepxiv-sdk")
@@ -12,16 +19,28 @@ mcp = FastMCP("deepxiv-sdk")
 _reader = Reader(token=os.environ.get("DEEPXIV_TOKEN"))
 
 
+def _format_error(error: Exception) -> str:
+    """Format an error message for the user."""
+    if isinstance(error, AuthenticationError):
+        return "❌ Authentication failed. Run 'deepxiv config' to set a valid token."
+    elif isinstance(error, RateLimitError):
+        return "⚠️  Daily limit reached. Email tommy@chien.io for higher limits."
+    elif isinstance(error, APIError):
+        return f"❌ API error: {str(error)}"
+    else:
+        return f"❌ Unexpected error: {str(error)}"
+
+
 @mcp.tool()
 def search_papers(
     query: str,
     size: int = 10,
     search_mode: str = "hybrid",
-    categories: str = None,
-    authors: str = None,
-    min_citation: int = None,
-    date_from: str = None,
-    date_to: str = None
+    categories: Optional[str] = None,
+    authors: Optional[str] = None,
+    min_citation: Optional[int] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
 ) -> str:
     """Search for arXiv papers using hybrid search (BM25 + Vector).
 
@@ -38,54 +57,66 @@ def search_papers(
     Returns:
         Formatted search results with paper titles, IDs, and abstracts
     """
-    # Parse comma-separated values
-    cat_list = [c.strip() for c in categories.split(",")] if categories else None
-    auth_list = [a.strip() for a in authors.split(",")] if authors else None
+    try:
+        if not query or not query.strip():
+            return "❌ Search query cannot be empty"
 
-    results = _reader.search(
-        query=query,
-        size=size,
-        search_mode=search_mode,
-        categories=cat_list,
-        authors=auth_list,
-        min_citation=min_citation,
-        date_from=date_from,
-        date_to=date_to
-    )
+        # Parse comma-separated values
+        cat_list = [c.strip() for c in categories.split(",")] if categories else None
+        auth_list = [a.strip() for a in authors.split(",")] if authors else None
 
-    if not results:
-        return f"No results found for query: {query}"
+        results = _reader.search(
+            query=query,
+            size=size,
+            search_mode=search_mode,
+            categories=cat_list,
+            authors=auth_list,
+            min_citation=min_citation,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
-    total = results.get("total", 0)
-    result_list = results.get("results", [])
+        if not results or not results.get("results"):
+            return f"No papers found matching '{query}'. Try different keywords or adjust filters."
 
-    output = [f"Found {total} papers for '{query}' (showing {len(result_list)}):\n"]
+        total = results.get("total", 0)
+        result_list = results.get("results", [])
 
-    for i, paper in enumerate(result_list, 1):
-        arxiv_id = paper.get("arxiv_id", "Unknown")
-        title = paper.get("title", "No title")
-        abstract = paper.get("abstract", "")[:300]
-        score = paper.get("score", 0)
-        citations = paper.get("citation", 0)
-        paper_cats = paper.get("categories", [])
+        output = [f"Found {total} papers for '{query}' (showing {len(result_list)}):\n"]
 
-        output.append(f"{i}. {title}")
-        output.append(f"   arXiv ID: {arxiv_id}")
-        output.append(f"   Score: {score:.3f} | Citations: {citations}")
-        if paper_cats:
-            cats_str = ", ".join(paper_cats[:3]) if isinstance(paper_cats, list) else str(paper_cats)
-            output.append(f"   Categories: {cats_str}")
-        output.append(f"   Abstract: {abstract}...")
-        output.append("")
+        for i, paper in enumerate(result_list, 1):
+            arxiv_id = paper.get("arxiv_id", "Unknown")
+            title = paper.get("title", "No title")
+            abstract = paper.get("abstract", "")[:300]
+            score = paper.get("score", 0)
+            citations = paper.get("citation", 0)
+            paper_cats = paper.get("categories", [])
 
-    return "\n".join(output)
+            output.append(f"{i}. {title}")
+            output.append(f"   arXiv ID: {arxiv_id}")
+            output.append(f"   Score: {score:.3f} | Citations: {citations}")
+            if paper_cats:
+                cats_str = (
+                    ", ".join(paper_cats[:3])
+                    if isinstance(paper_cats, list)
+                    else str(paper_cats)
+                )
+                output.append(f"   Categories: {cats_str}")
+            output.append(f"   Abstract: {abstract}...")
+            output.append("")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Error in search_papers: {e}")
+        return _format_error(e)
 
 
 @mcp.tool()
 def get_paper_brief(arxiv_id: str) -> str:
     """Get brief information about an arXiv paper (quick summary).
 
-    This is perfect for getting a quick overview without loading the full metadata.
+    This is perfect for getting a quick overview without loading full metadata.
     Returns title, TLDR, keywords, publication date, and citation count.
 
     Args:
@@ -94,31 +125,39 @@ def get_paper_brief(arxiv_id: str) -> str:
     Returns:
         Brief paper information including title, TLDR, keywords, citations
     """
-    brief = _reader.brief(arxiv_id)
+    try:
+        if not arxiv_id or not arxiv_id.strip():
+            return "❌ arXiv ID cannot be empty"
 
-    if not brief:
-        return f"Failed to get brief info for paper {arxiv_id}"
+        brief = _reader.brief(arxiv_id)
 
-    output = [f"Paper: {arxiv_id}\n"]
-    output.append(f"Title: {brief.get('title', 'No title')}\n")
-    output.append(f"PDF: {brief.get('src_url', 'N/A')}")
-    output.append(f"Published: {brief.get('publish_at', 'N/A')}")
-    output.append(f"Citations: {brief.get('citations', 0)}\n")
+        if not brief:
+            return f"❌ Paper {arxiv_id} not found. Check the arXiv ID and try again."
 
-    # Keywords
-    keywords = brief.get("keywords", [])
-    if keywords:
-        if isinstance(keywords, list):
-            output.append(f"Keywords: {', '.join(keywords)}\n")
-        else:
-            output.append(f"Keywords: {keywords}\n")
+        output = [f"📄 Paper: {arxiv_id}\n"]
+        output.append(f"📌 Title: {brief.get('title', 'No title')}\n")
+        output.append(f"🔗 PDF: {brief.get('src_url', 'N/A')}")
+        output.append(f"📅 Published: {brief.get('publish_at', 'N/A')}")
+        output.append(f"📈 Citations: {brief.get('citations', 0)}\n")
 
-    # TLDR
-    tldr = brief.get("tldr", "")
-    if tldr:
-        output.append(f"TLDR:\n{tldr}")
+        # Keywords
+        keywords = brief.get("keywords", [])
+        if keywords:
+            if isinstance(keywords, list):
+                output.append(f"🏷️  Keywords: {', '.join(keywords)}\n")
+            else:
+                output.append(f"🏷️  Keywords: {keywords}\n")
 
-    return "\n".join(output)
+        # TLDR
+        tldr = brief.get("tldr", "")
+        if tldr:
+            output.append(f"💡 TLDR:\n{tldr}")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Error in get_paper_brief: {e}")
+        return _format_error(e)
 
 
 @mcp.tool()
@@ -129,55 +168,81 @@ def get_paper_metadata(arxiv_id: str) -> str:
         arxiv_id: arXiv ID (e.g., "2409.05591", "2503.04975")
 
     Returns:
-        Paper metadata including title, authors, abstract, and available sections with TLDRs
+        Paper metadata including title, authors, abstract, and available sections
     """
-    head = _reader.head(arxiv_id)
+    try:
+        if not arxiv_id or not arxiv_id.strip():
+            return "❌ arXiv ID cannot be empty"
 
-    if not head:
-        return f"Failed to get metadata for paper {arxiv_id}"
+        head = _reader.head(arxiv_id)
 
-    output = [f"Paper: {arxiv_id}\n"]
-    output.append(f"Title: {head.get('title', 'No title')}\n")
+        if not head:
+            return (
+                f"❌ Paper {arxiv_id} not found. Check the arXiv ID and try again."
+            )
 
-    # Authors
-    authors = head.get("authors", [])
-    if isinstance(authors, str):
-        authors = [a.strip() for a in authors.split(",")]
+        output = [f"📄 Paper: {arxiv_id}\n"]
+        output.append(f"📌 Title: {head.get('title', 'No title')}\n")
 
-    output.append(f"Authors ({len(authors)} total):")
-    for i, author in enumerate(authors[:5], 1):
-        if isinstance(author, dict):
-            name = author.get("name", "Unknown")
-            orgs = author.get("orgs", [])
-            orgs_str = ", ".join(orgs) if isinstance(orgs, list) else str(orgs) if orgs else ""
-            output.append(f"  {i}. {name}" + (f" ({orgs_str})" if orgs_str else ""))
-        else:
-            output.append(f"  {i}. {author}")
-    if len(authors) > 5:
-        output.append(f"  ... and {len(authors) - 5} more authors")
+        # Authors
+        authors = head.get("authors", [])
+        if isinstance(authors, str):
+            authors = [a.strip() for a in authors.split(",")]
 
-    # Categories and date
-    cats = head.get("categories", [])
-    cats_str = ", ".join(cats) if isinstance(cats, list) else str(cats)
-    output.append(f"\nCategories: {cats_str}")
-    output.append(f"Published: {head.get('publish_at', 'N/A')}")
-    output.append(f"Total tokens: {head.get('token_count', 'N/A')}")
+        output.append(f"👥 Authors ({len(authors)} total):")
+        for i, author in enumerate(authors[:5], 1):
+            if isinstance(author, dict):
+                name = author.get("name", "Unknown")
+                orgs = author.get("orgs", [])
+                orgs_str = (
+                    ", ".join(orgs)
+                    if isinstance(orgs, list)
+                    else str(orgs)
+                    if orgs
+                    else ""
+                )
+                output.append(f"  {i}. {name}" + (f" ({orgs_str})" if orgs_str else ""))
+            else:
+                output.append(f"  {i}. {author}")
+        if len(authors) > 5:
+            output.append(f"  ... and {len(authors) - 5} more authors")
 
-    # Abstract
-    output.append(f"\nAbstract:\n{head.get('abstract', 'No abstract')}\n")
+        # Categories and date
+        cats = head.get("categories", [])
+        cats_str = ", ".join(cats) if isinstance(cats, list) else str(cats)
+        output.append(f"\n📚 Categories: {cats_str}")
+        output.append(f"📅 Published: {head.get('publish_at', 'N/A')}")
+        output.append(f"📊 Total tokens: {head.get('token_count', 'N/A')}")
 
-    # Sections with TLDRs
-    sections = head.get("sections", {})
-    if sections:
-        output.append("Available Sections:")
-        sorted_sections = sorted(sections.items(), key=lambda x: x[1].get("idx", 999))
-        for section_name, section_info in sorted_sections:
-            tldr = section_info.get("tldr", "No summary")
-            tokens = section_info.get("token_count", 0)
-            output.append(f"  - {section_name} ({tokens} tokens)")
-            output.append(f"    TLDR: {tldr}")
+        # Abstract
+        output.append(f"\n📖 Abstract:\n{head.get('abstract', 'No abstract')}\n")
 
-    return "\n".join(output)
+        # Sections with TLDRs
+        sections = head.get("sections", {})
+        if sections:
+            output.append("📑 Available Sections:")
+            if isinstance(sections, dict):
+                sorted_sections = sorted(
+                    sections.items(), key=lambda x: x[1].get("idx", 999)
+                )
+                for section_name, section_info in sorted_sections:
+                    tldr = section_info.get("tldr", "No summary")
+                    tokens = section_info.get("token_count", 0)
+                    output.append(f"  - {section_name} ({tokens} tokens)")
+                    output.append(f"    💡 {tldr}")
+            else:
+                # Handle if sections is a list instead of dict
+                for section in sections:
+                    if isinstance(section, dict):
+                        output.append(f"  - {section.get('name', 'Unknown')}")
+                    else:
+                        output.append(f"  - {section}")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Error in get_paper_metadata: {e}")
+        return _format_error(e)
 
 
 @mcp.tool()
@@ -191,18 +256,34 @@ def get_paper_section(arxiv_id: str, section_name: str) -> str:
     Returns:
         Full section content in markdown format
     """
-    content = _reader.section(arxiv_id, section_name)
+    try:
+        if not arxiv_id or not arxiv_id.strip():
+            return "❌ arXiv ID cannot be empty"
+        if not section_name or not section_name.strip():
+            return "❌ Section name cannot be empty"
 
-    if not content:
-        # Try to get available sections
-        head = _reader.head(arxiv_id)
-        if head:
-            sections = head.get("sections", {})
-            available = ", ".join(sections.keys()) if sections else "none found"
-            return f"Section '{section_name}' not found in paper {arxiv_id}. Available sections: {available}"
-        return f"Failed to get section '{section_name}' from paper {arxiv_id}"
+        content = _reader.section(arxiv_id, section_name)
 
-    return f"=== {section_name} (Paper: {arxiv_id}) ===\n\n{content}"
+        if not content:
+            # Try to get available sections
+            head = _reader.head(arxiv_id)
+            if head:
+                sections = head.get("sections", {})
+                if isinstance(sections, dict):
+                    available = ", ".join(sections.keys()) if sections else "none found"
+                else:
+                    available = "Unable to list sections"
+                return (
+                    f"❌ Section '{section_name}' not found in paper {arxiv_id}.\n"
+                    f"Available sections: {available}"
+                )
+            return f"❌ Unable to find section '{section_name}' in paper {arxiv_id}"
+
+        return f"=== {section_name} (Paper: {arxiv_id}) ===\n\n{content}"
+
+    except Exception as e:
+        logger.error(f"Error in get_paper_section: {e}")
+        return _format_error(e)
 
 
 @mcp.tool()
@@ -219,12 +300,23 @@ def get_full_paper(arxiv_id: str) -> str:
     Returns:
         Full paper content in markdown format
     """
-    content = _reader.raw(arxiv_id)
+    try:
+        if not arxiv_id or not arxiv_id.strip():
+            return "❌ arXiv ID cannot be empty"
 
-    if not content:
-        return f"Failed to get full content for paper {arxiv_id}"
+        content = _reader.raw(arxiv_id)
 
-    return content
+        if not content:
+            return (
+                f"❌ Failed to get full paper {arxiv_id}. "
+                "Check the arXiv ID and try again."
+            )
+
+        return content
+
+    except Exception as e:
+        logger.error(f"Error in get_full_paper: {e}")
+        return _format_error(e)
 
 
 @mcp.tool()
@@ -239,20 +331,31 @@ def get_paper_preview(arxiv_id: str) -> str:
     Returns:
         Preview of the paper content
     """
-    preview = _reader.preview(arxiv_id)
+    try:
+        if not arxiv_id or not arxiv_id.strip():
+            return "❌ arXiv ID cannot be empty"
 
-    if not preview:
-        return f"Failed to get preview for paper {arxiv_id}"
+        preview = _reader.preview(arxiv_id)
 
-    content = preview.get("content", preview.get("preview", ""))
-    is_truncated = preview.get("is_truncated", True)
-    total_chars = preview.get("total_characters", "unknown")
+        if not preview:
+            return (
+                f"❌ Failed to get preview for paper {arxiv_id}. "
+                "Check the arXiv ID and try again."
+            )
 
-    result = content
-    if is_truncated:
-        result += f"\n\n[Preview truncated. Total paper size: {total_chars} characters]"
+        content = preview.get("content", preview.get("preview", ""))
+        is_truncated = preview.get("is_truncated", True)
+        total_chars = preview.get("total_characters", "unknown")
 
-    return result
+        result = content
+        if is_truncated:
+            result += f"\n\n[Preview truncated. Total paper size: {total_chars} characters]"
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error in get_paper_preview: {e}")
+        return _format_error(e)
 
 
 @mcp.tool()
@@ -265,45 +368,53 @@ def get_pmc_metadata(pmc_id: str) -> str:
     Returns:
         PMC paper metadata including title, authors, abstract, DOI, and publication info
     """
-    head = _reader.pmc_head(pmc_id)
+    try:
+        if not pmc_id or not pmc_id.strip():
+            return "❌ PMC ID cannot be empty"
 
-    if not head:
-        return f"Failed to get metadata for PMC paper {pmc_id}"
+        head = _reader.pmc_head(pmc_id)
 
-    output = [f"PMC Paper: {pmc_id}\n"]
-    output.append(f"Title: {head.get('title', 'No title')}\n")
+        if not head:
+            return f"❌ PMC paper {pmc_id} not found. Check the PMC ID and try again."
 
-    # DOI
-    doi = head.get("doi", "N/A")
-    output.append(f"DOI: {doi}\n")
+        output = [f"📄 PMC Paper: {pmc_id}\n"]
+        output.append(f"📌 Title: {head.get('title', 'No title')}\n")
 
-    # Authors
-    authors = head.get("authors", [])
-    if isinstance(authors, str):
-        authors = [a.strip() for a in authors.split(",")]
+        # DOI
+        doi = head.get("doi", "N/A")
+        output.append(f"🔗 DOI: {doi}\n")
 
-    output.append(f"Authors ({len(authors)} total):")
-    for i, author in enumerate(authors[:10], 1):
-        if isinstance(author, dict):
-            name = author.get("name", "Unknown")
-            output.append(f"  {i}. {name}")
-        else:
-            output.append(f"  {i}. {author}")
-    if len(authors) > 10:
-        output.append(f"  ... and {len(authors) - 10} more authors")
+        # Authors
+        authors = head.get("authors", [])
+        if isinstance(authors, str):
+            authors = [a.strip() for a in authors.split(",")]
 
-    # Categories and date
-    cats = head.get("categories", [])
-    if cats:
-        cats_str = ", ".join(cats) if isinstance(cats, list) else str(cats)
-        output.append(f"\nCategories: {cats_str}")
-    output.append(f"Published: {head.get('publish_at', 'N/A')}")
+        output.append(f"👥 Authors ({len(authors)} total):")
+        for i, author in enumerate(authors[:10], 1):
+            if isinstance(author, dict):
+                name = author.get("name", "Unknown")
+                output.append(f"  {i}. {name}")
+            else:
+                output.append(f"  {i}. {author}")
+        if len(authors) > 10:
+            output.append(f"  ... and {len(authors) - 10} more authors")
 
-    # Abstract
-    abstract = head.get("abstract", "No abstract")
-    output.append(f"\nAbstract:\n{abstract}")
+        # Categories and date
+        cats = head.get("categories", [])
+        if cats:
+            cats_str = ", ".join(cats) if isinstance(cats, list) else str(cats)
+            output.append(f"\n📚 Categories: {cats_str}")
+        output.append(f"📅 Published: {head.get('publish_at', 'N/A')}")
 
-    return "\n".join(output)
+        # Abstract
+        abstract = head.get("abstract", "No abstract")
+        output.append(f"\n📖 Abstract:\n{abstract}")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Error in get_pmc_metadata: {e}")
+        return _format_error(e)
 
 
 @mcp.tool()
@@ -319,13 +430,23 @@ def get_pmc_full(pmc_id: str) -> str:
     Returns:
         Full PMC paper content as JSON string
     """
-    content = _reader.pmc_json(pmc_id)
+    try:
+        if not pmc_id or not pmc_id.strip():
+            return "❌ PMC ID cannot be empty"
 
-    if not content:
-        return f"Failed to get full content for PMC paper {pmc_id}"
+        content = _reader.pmc_full(pmc_id)
 
-    import json
-    return json.dumps(content, indent=2)
+        if not content:
+            return (
+                f"❌ Failed to get PMC paper {pmc_id}. "
+                "Check the PMC ID and try again."
+            )
+
+        return json.dumps(content, indent=2)
+
+    except Exception as e:
+        logger.error(f"Error in get_pmc_full: {e}")
+        return _format_error(e)
 
 
 def create_server():

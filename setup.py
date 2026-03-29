@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deepxiv-sdk",
-    version="0.1.1",
+    version="0.2.0",
     author="Hongjin Qian",
     description="A Python package for arXiv paper access with CLI and MCP server support",
     long_description=long_description,
@@ -59,9 +59,11 @@ setup(
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
+            "pytest-mock>=3.10.0",
             "black>=22.0.0",
             "flake8>=5.0.0",
             "mypy>=1.0.0",
+            "isort>=5.0.0",
         ],
     },
     entry_points={
