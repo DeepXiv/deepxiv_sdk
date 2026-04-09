@@ -9,6 +9,18 @@ Install it with `pip`, start using it immediately, and let the CLI auto-register
 - **📄 Technical Report**: [![arxiv](https://img.shields.io/badge/arXiv-2603.00084-b31b1b)](https://arxiv.org/abs/2603.00084)
 - **📖 中文文档**: [README.zh.md](README.zh.md)
 
+---
+
+> 🚀 **Live Demo**: I used vibe coding, based on deepxiv CLI, to build a [DeepResearch demo](https://demo.rag.ac.cn/) in 1 hour — feel free to try it out!
+
+---
+
+<div style="display: flex; justify-content: space-around;">
+  <div style="text-align: center;">
+    <img src="./assets/demo.gif" style="width: 100%;">
+  </div>
+</div>
+
 ## What DeepXiv Does
 
 DeepXiv is built around two core workflows that matter for agents:
@@ -24,7 +36,7 @@ Instead of blindly loading full papers, DeepXiv lets agents read in layers, base
 pip install deepxiv-sdk
 ```
 
-On first use, deepxiv automatically registers a free token and saves it to `~/.env`:
+On first use, deepxiv automatically registers a free anonymous token (1,000 requests/day) and saves it to `~/.env`:
 
 ```bash
 deepxiv search "agentic memory" --limit 5
@@ -89,7 +101,8 @@ deepxiv wsearch "karpathy" --json
 Notes:
 - `deepxiv wsearch` calls the DeepXiv web search endpoint
 - each `wsearch` request costs **20 limit**
-- a registered token gets **10,000 limit per day**, so this is roughly **500 web searches per day**
+- an auto-registered anonymous token gets **1,000 limit per day** (~50 web searches/day)
+- a token registered at [data.rag.ac.cn/register](https://data.rag.ac.cn/register) gets **10,000 limit per day** (~500 web searches/day)
 
 ### 4. Semantic Scholar Metadata by ID
 
@@ -266,7 +279,7 @@ print(answer)
 
 deepxiv supports 4 ways to configure tokens:
 
-**1. Auto-registration (Recommended)** - Automatically creates and saves on first use
+**1. Auto-registration (Recommended)** - Automatically creates and saves on first use (1,000 requests/day)
 ```bash
 deepxiv search "agent"
 ```
@@ -286,7 +299,13 @@ export DEEPXIV_TOKEN="your_token"
 deepxiv paper 2409.05591 --token YOUR_TOKEN
 ```
 
-**Increase daily limit**: Default is 10,000 requests/day. For higher limits, email your name, email, and phone to `tommy@chien.io`.
+**Daily limits by token type**:
+
+| Token type | Daily limit | How to get |
+|---|---|---|
+| Auto-registered (anonymous) | 1,000 requests | Happens automatically on first CLI use |
+| Registered token | 10,000 requests | Sign up at [data.rag.ac.cn/register](https://data.rag.ac.cn/register) |
+| Custom / higher limit | Contact us | Email `tommy[at]chien.io` and describe your use case |
 
 ### Free Test Papers
 
@@ -398,4 +417,4 @@ MIT License - see [LICENSE](LICENSE) file
 
 - 🐛 **GitHub Issues**: [https://github.com/qhjqhj00/deepxiv_sdk/issues](https://github.com/qhjqhj00/deepxiv_sdk/issues)
 - 📚 **API Documentation**: [https://data.rag.ac.cn/api/docs](https://data.rag.ac.cn/api/docs)
-- 📧 **Higher Limits**: Email with your name, email, and phone to `tommy@chien.io`
+- 📧 **Higher Limits**: Register at [data.rag.ac.cn/register](https://data.rag.ac.cn/register) for 10,000 requests/day, or email `tommy[at]chien.io` to describe your use case for a custom limit
