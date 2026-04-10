@@ -2,7 +2,7 @@
 
 **DeepXiv is an agent-first paper search and progressive reading tool.**
 
-Install it with `pip`, start using it immediately, and let the CLI auto-register a token on first use. No extra setup is required before your first query.
+Install it with `pip`, start using it immediately, and let the CLI auto-register an API token on first use. No extra setup is required before your first query.
 
 - **📚 API Documentation**: [https://data.rag.ac.cn/api/docs](https://data.rag.ac.cn/api/docs)
 - **🎥 Demo Video**: [![Watch Demo](https://img.shields.io/badge/YouTube-Watch%20Demo-red)](https://youtu.be/atr71CbQybM)
@@ -99,9 +99,9 @@ deepxiv wsearch "karpathy" --json
 
 Notes:
 - `deepxiv wsearch` calls the DeepXiv web search endpoint
-- each `wsearch` request costs **20 limit**
-- an auto-registered anonymous token gets **1,000 limit per day** (~50 web searches/day)
-- a token registered at [data.rag.ac.cn/register](https://data.rag.ac.cn/register) gets **10,000 limit per day** (~500 web searches/day)
+- each `wsearch` request costs **20 scores**, other requests cost **1 score**
+- an auto-registered anonymous token gets **1,000 scores per day** (~50 web searches/day)
+- a token registered at [data.rag.ac.cn/register](https://data.rag.ac.cn/register) gets **10,000 scores per day** (~500 web searches/day)
 
 ### 4. Semantic Scholar Metadata by ID
 
