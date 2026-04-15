@@ -140,7 +140,6 @@ deepxiv search "Alzheimer" --medrxiv --date-from 2024-01
 deepxiv biorxiv 10.1101/2021.02.26.433129
 deepxiv biorxiv 10.1101/2021.02.26.433129 --format text
 deepxiv biorxiv 10.1101/2021.02.26.433129 --section Introduction,Methods
-deepxiv biorxiv 10.1101/2021.02.26.433129 --roc --roc-num 5
 
 deepxiv medrxiv 10.1101/2025.08.11.25333149
 deepxiv medrxiv 10.1101/2025.08.11.25333149 --format text
