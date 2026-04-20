@@ -2,6 +2,8 @@
 
 **DeepXiv is an agent-first paper search and progressive reading tool.**
 
+> ⚠️ **Retrieval service is temporarily unavailable** due to high demand. We are expanding our capacity to better serve you.
+
 Install it with `pip`, start using it immediately, and let the CLI auto-register an API token on first use. No extra setup is required before your first query.
 
 - **📚 API Documentation**: [https://data.rag.ac.cn/api/docs](https://data.rag.ac.cn/api/docs)
@@ -253,7 +255,6 @@ deepxiv search "Alzheimer" --medrxiv --date-from 2024-01
 deepxiv biorxiv 10.1101/2021.02.26.433129
 deepxiv biorxiv 10.1101/2021.02.26.433129 --format text
 deepxiv biorxiv 10.1101/2021.02.26.433129 --section Introduction,Methods
-deepxiv biorxiv 10.1101/2021.02.26.433129 --roc --roc-num 5
 
 deepxiv medrxiv 10.1101/2025.08.11.25333149
 deepxiv medrxiv 10.1101/2025.08.11.25333149 --format text
