@@ -258,7 +258,7 @@ deepxiv agent query "Compare these two approaches" --max-turn 10 --verbose
 
 # First time setup
 deepxiv agent config
-# Configure your LLM (OpenAI, DeepSeek, OpenRouter, etc.)
+# Configure your LLM (OpenAI, DeepSeek, OpenRouter, Requesty, etc.)
 ```
 
 **Token cost**: Varies by reasoning depth
@@ -326,7 +326,7 @@ deepxiv paper <top_id_2>
 | **Biomedical Access** | PubMed Central (PMC) papers |
 | **Open Access Only** | arXiv, PMC, bioRxiv, medRxiv |
 | **Intelligent Analysis** | ReAct agent with multi-turn reasoning |
-| **Multiple LLMs** | Compatible with OpenAI, DeepSeek, OpenRouter, etc. |
+| **Multiple LLMs** | Compatible with OpenAI, DeepSeek, OpenRouter, Requesty, etc. |
 
 ### What deepxiv Cannot Do ❌
 
