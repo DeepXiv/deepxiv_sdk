@@ -43,6 +43,15 @@ def main():
     #     print_process=True
     # )
     
+    # Option 4: Requesty (uncomment to use)
+    # agent = Agent(
+    #     api_key=os.getenv("REQUESTY_API_KEY"),
+    #     model="openai/gpt-4o-mini",
+    #     base_url="https://router.requesty.ai/v1",
+    #     reader=reader,
+    #     print_process=True
+    # )
+    
     print("\n" + "=" * 80)
     print("Example 1: Search and analyze papers on a topic")
     print("=" * 80)

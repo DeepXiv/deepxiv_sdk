@@ -644,6 +644,13 @@ agent = Agent(
     model="openai/gpt-4"
 )
 
+# Requesty
+agent = Agent(
+    api_key="your_requesty_key",
+    base_url="https://router.requesty.ai/v1",
+    model="openai/gpt-4o-mini"
+)
+
 # Local Ollama
 agent = Agent(
     api_key="ollama",  # dummy key
