@@ -4,14 +4,14 @@ CLI 与 Python 两个入口的完整参考。精简版见 [README.zh.md](README.
 
 > **English**: [USAGE.md](USAGE.md)
 
-**目录** —— [安装](#安装) · [Token 与额度](#token-与额度) · **CLI**：[ask](#cliagentic-searchdeepxiv-ask) · [检索](#cli检索) · [读论文](#cli读论文) · [talent](#cli人才库--学者画像) · [其他数据源](#其他数据源) · [Agent 集成](#agent-集成) · **Python**：[Agentic Search](#agentic-search) · [Reader 方法](#reader-方法) · [错误处理](#错误处理和重试) · [批量处理](#批量处理) · [research agent](#使用代理进行复杂分析) · [故障排查](#故障排查)
+**目录** —— [安装](#安装) · [Token 与额度](#token-与额度) · **CLI**：[ask](#cliagentic-searchdeepxiv-ask) · [检索](#cli检索) · [读论文](#cli读论文) · [fa：1stAuthor 垂域](#clifa--1stauthor-垂域talentlawtrials) · [其他数据源](#其他数据源) · [Agent 集成](#agent-集成) · **Python**：[Agentic Search](#agentic-search) · [Reader 方法](#reader-方法) · [错误处理](#错误处理和重试) · [批量处理](#批量处理) · [research agent](#使用代理进行复杂分析) · [故障排查](#故障排查)
 
 ## 安装
 
 ```bash
 pip install deepxiv-sdk              # Reader + CLI
 pip install "deepxiv-sdk[all]"       # + 内置 research agent（需要你自己的 LLM key）
-pip install git+https://github.com/DeepXiv/deepxiv_sdk.git   # 1.1.0b1，含 `deepxiv talent`（beta）
+pip install git+https://github.com/DeepXiv/deepxiv_sdk.git   # 1.2.0b1，含 `deepxiv fa`（beta）
 ```
 
 ```python
@@ -29,7 +29,7 @@ reader = Reader(token=os.environ["DEEPXIV_TOKEN"])
 
 deepxiv 依次从 `--token`、`DEEPXIV_TOKEN`、`~/.env` 解析 token，首次使用会自动注册一个。
 
-| | 通用 daily limit | Agentic / talent 调用 | 获取方式 |
+| | 通用 daily limit | Agentic 调用（`ask`、`fa ask`） | 获取方式 |
 |---|---|---|---|
 | 自动注册 | 1,000 请求 | ❌ 不可用 | 首次使用 CLI 时自动完成 |
 | 注册用户 | 10,000 请求 | ✅ 300 次/天 | [data.rag.ac.cn/register](https://data.rag.ac.cn/register) |
@@ -160,35 +160,20 @@ deepxiv search "transformer model" --use-fine-rerank
 
 返回 `{status, total_count, result: [...]}`。每条结果带 `arxiv_id`、`title`、`abstract`、`tldr`、`authors`、`categories`、`citation_count`、`date`、`github_url`、`score`，已知时还有 `venue`/`venue_year`。
 
-## CLI：人才库 —— 学者画像
+## CLI：fa —— 1stAuthor 垂域（talent、law、trials……）
 
-> **Beta。** 功能在 `1.1.0b1`，仅源码安装。人才库数据仍在建设中，覆盖并不均匀 —— 尚未爬到的领域画像会比较薄。
+> **Beta。** 功能在 `1.2.0b1`，仅源码安装。**完整文档：[FA.zh.md](FA.zh.md)。**
 
-检索的对象是人而不是论文：谁在做某个方向、人在哪、履历如何。
+`deepxiv fa` 用你的 deepxiv token 访问 [1stAuthor](https://1stauthor.com) 的垂域：学者、法规、裁判文书、临床试验、药品、基金、公告、标准、CVE、美国联邦公报。
 
 ```bash
-# 语义检索（接一整句自然语言）
-deepxiv talent search "做检索增强生成的青年老师" --semantic --limit 5
-
-# 关键词模式：按人名 / 单位匹配
-deepxiv talent search "窦志成"
-
-# 按标签、职业阶段筛选，按引用量排序
-deepxiv talent search --tags 大语言模型,Agent --career-stage student --sort total_citations
-
-# 单人详情（ID 来自 search）
-deepxiv talent survey 257
-deepxiv talent survey 257 --format markdown    # 生成好的完整报告
-deepxiv talent survey 257 --no-refresh         # 只读，不触发 Scholar 刷新
+deepxiv fa domains                                    # 有哪些域（免费）
+deepxiv fa search talent "Geoffrey Hinton"            # 在某个域里检索
+deepxiv fa read talent 15023 --level brief            # 读检索到的结果
+deepxiv fa ask "自监督学习领域最有影响力的研究者有哪些" --domain talent   # 需注册 key
 ```
 
-`search` 参数：`--semantic`、`--tags T1,T2`（取并集）、`--career-stage student|junior|senior`、`--investigated profile|deep|any|scholar`、`--sort h_index|total_citations|last_paper_at|updated_at|created_at`、`--order desc|asc`、`--limit`、`--offset`、`--json`。
-
-`survey` 参数：`--format text|json|markdown`、`--refresh` / `--no-refresh`。
-
-search 返回 `{persons, total, semantic, quota, cached}`；survey 返回 `{person, papers, scholar, quota}`，含教育经历、工作履历、联系方式、开源项目与论文指标。画像超过 14 天会在 `survey` 时自动从 Google Scholar 刷新，`--no-refresh` 可以纯读不刷。
-
-两个命令都从 `deepxiv ask` 那份 agent 配额里各扣 1 次，因此需要注册过的 key。
+`search`、`read`、`facets`、`resolve` 任何 token 都能用，扣通用 daily limit；`fa ask` 需要注册 key。`deepxiv talent search|survey` 已是弃用别名。过滤语法、读取级别、价格、错误处理、Python 用法和迁移说明都在 [FA.zh.md](FA.zh.md)。
 
 ## 其他数据源
 
@@ -338,12 +323,15 @@ reader.section(arxiv_id, name)                     # 单个章节
 reader.preview(arxiv_id)                           # 约 10k 字符预览
 reader.raw(arxiv_id) / reader.json(arxiv_id)       # 完整 markdown / 结构化 JSON
 reader.trending(days=7, limit=30)                  # 热点论文（days 1~30）
-reader.talent_search(query, semantic=True)         # 学者检索（扣 agent 配额）
-reader.talent_survey(person_id, refresh=False)     # 单个学者的完整画像
+reader.fa()                                        # 1stAuthor 垂域的 FAClient（见下）
 reader.social_impact(arxiv_id)                     # 热度指标
 reader.pmc_head(pmc_id) / reader.pmc_json(pmc_id)  # PubMed Central
 reader.biomed_search(...) / reader.biomed_data(...) # bioRxiv / medRxiv
 ```
+
+### 1stAuthor 垂域（`FAClient`）
+
+`FAClient`（或 `reader.fa()`）是 `deepxiv fa` 的 Python 接口，见 [FA.zh.md § Python](FA.zh.md#10-python-接口)。
 
 <details>
 <summary><b><code>reader.search()</code> 参数</b></summary>
@@ -723,7 +711,7 @@ results = reader.search("agent")  # 会输出日志
 - **`ask` 答非所问？** 换个更具体的说法，而不是提高 `--effort` —— effort 只增加阅读轮数，改变不了第一轮的召回方向。
 - **`ask` 列出了和答案无关的论文？** 那是召回集不是引用列表，`--all-sources` 会完整显示。
 - **检索返回 0 条？** 松开过滤条件 —— 日期和引用数叠加会很快过窄。
-- **`talent survey` 说找不到这个 ID？** ID 来自 `deepxiv talent search`，人才库不用 arXiv 或 Scholar 的 ID。
+- **`deepxiv fa` 的问题？** 见 [FA.zh.md § 常见问题](FA.zh.md#13-常见问题)。
 - **Agent 报 `Reasoning content is only supported as the last assistant message`？** 推理模型做多轮工具调用需要关掉 thinking：`deepxiv agent query "…" --disable-thinking`，或 `Agent(..., enable_thinking=False)`。
 - **`agent.add_paper()` 加不进新论文？** 论文还没入库时返回 `False` —— 1–3 天内的论文经常还没有。
 

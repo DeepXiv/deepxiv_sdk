@@ -4,14 +4,14 @@ The complete reference for both surfaces. For the short version see [README.md](
 
 > **中文版**: [USAGE.zh.md](USAGE.zh.md)
 
-**Contents** — [Install](#install) · [Tokens and limits](#tokens-and-limits) · **CLI**: [ask](#cli-agentic-search-deepxiv-ask) · [search](#cli-search) · [paper](#cli-reading-papers) · [talent](#cli-talent--scholar-profiles) · [other sources](#other-sources) · [agent integration](#agent-integration) · **Python**: [agentic search](#agentic-search) · [Reader methods](#reader-methods) · [error handling](#error-handling-and-retry) · [batching](#batch-processing) · [research agent](#agent-for-complex-analysis) · [troubleshooting](#troubleshooting)
+**Contents** — [Install](#install) · [Tokens and limits](#tokens-and-limits) · **CLI**: [ask](#cli-agentic-search-deepxiv-ask) · [search](#cli-search) · [paper](#cli-reading-papers) · [fa: 1stAuthor domains](#cli-fa--1stauthor-domains-talent-law-trials-) · [other sources](#other-sources) · [agent integration](#agent-integration) · **Python**: [agentic search](#agentic-search) · [Reader methods](#reader-methods) · [error handling](#error-handling-and-retry) · [batching](#batch-processing) · [research agent](#agent-for-complex-analysis) · [troubleshooting](#troubleshooting)
 
 ## Install
 
 ```bash
 pip install deepxiv-sdk              # Reader + CLI
 pip install "deepxiv-sdk[all]"       # + built-in research agent (needs your own LLM key)
-pip install git+https://github.com/DeepXiv/deepxiv_sdk.git   # 1.1.0b1, adds `deepxiv talent` (beta)
+pip install git+https://github.com/DeepXiv/deepxiv_sdk.git   # 1.2.0b1, adds `deepxiv fa` (beta)
 ```
 
 ```python
@@ -29,7 +29,7 @@ reader = Reader(token=os.environ["DEEPXIV_TOKEN"])
 
 deepxiv resolves the token from `--token`, then `DEEPXIV_TOKEN`, then `~/.env`. On first use it auto-registers one.
 
-| | Daily limit | Agentic + talent calls | How to get |
+| | Daily limit | Agentic calls (`ask`, `fa ask`) | How to get |
 |---|---|---|---|
 | Auto-registered | 1,000 requests | ❌ not eligible | Automatic on first CLI use |
 | Registered | 10,000 requests | ✅ 300/day | [data.rag.ac.cn/register](https://data.rag.ac.cn/register) |
@@ -160,35 +160,20 @@ deepxiv search "transformer model" --use-fine-rerank
 
 Returns `{status, total_count, result: [...]}`. Each result carries `arxiv_id`, `title`, `abstract`, `tldr`, `authors`, `categories`, `citation_count`, `date`, `github_url`, `score`, and `venue`/`venue_year` when known.
 
-## CLI: talent — scholar profiles
+## CLI: fa — 1stAuthor domains (talent, law, trials, ...)
 
-> **Beta.** Ships in `1.1.0b1`, source install only. The scholar index is still being built out, so coverage is uneven — expect thin profiles outside the areas that have been crawled.
+> **Beta.** Ships in `1.2.0b1`, source install only. **Full guide: [FA.md](FA.md).**
 
-Search people instead of papers: who works on a topic, where they are, and what their record looks like.
+`deepxiv fa` reaches [1stAuthor](https://1stauthor.com)'s domains (researchers, statutes, judgments, clinical trials, drugs, grants, filings, standards, CVEs, the Federal Register) with your deepxiv token.
 
 ```bash
-# Semantic search over the scholar index (takes a full sentence)
-deepxiv talent search "young faculty working on retrieval-augmented generation" --semantic --limit 5
-
-# Keyword mode matches names and affiliations
-deepxiv talent search "窦志成"
-
-# Filter by tag, career stage, and sort key
-deepxiv talent search --tags 大语言模型,Agent --career-stage student --sort total_citations
-
-# Full profile for one scholar (IDs come from search)
-deepxiv talent survey 257
-deepxiv talent survey 257 --format markdown    # the generated report
-deepxiv talent survey 257 --no-refresh         # read-only, skip the Scholar refresh
+deepxiv fa domains                                    # what's there (free)
+deepxiv fa search talent "Geoffrey Hinton"            # search a domain
+deepxiv fa read talent 15023 --level brief            # read what you found
+deepxiv fa ask "who are the leading researchers on self-supervised learning" --domain talent   # registered key
 ```
 
-`search` options: `--semantic`, `--tags T1,T2` (OR-ed), `--career-stage student|junior|senior`, `--investigated profile|deep|any|scholar`, `--sort h_index|total_citations|last_paper_at|updated_at|created_at`, `--order desc|asc`, `--limit`, `--offset`, `--json`.
-
-`survey` options: `--format text|json|markdown`, `--refresh` / `--no-refresh`.
-
-Search returns `{persons, total, semantic, quota, cached}`; survey returns `{person, papers, scholar, quota}` with education, work history, links, open source, and publication metrics. Profiles older than ~14 days refresh from Google Scholar automatically on `survey`; `--no-refresh` reads without triggering that.
-
-Both commands spend one unit from the same agentic quota pool as `deepxiv ask`, so they need a registered key.
+`search`, `read`, `facets` and `resolve` work with any token and spend the general daily limit. `fa ask` needs a registered key. `deepxiv talent search|survey` are deprecated aliases. Filters, read levels, prices, errors, the Python API and migration notes are all in [FA.md](FA.md).
 
 ## Other sources
 
@@ -340,12 +325,15 @@ reader.section(arxiv_id, name)                     # one section
 reader.preview(arxiv_id)                           # ~10k-char preview
 reader.raw(arxiv_id) / reader.json(arxiv_id)       # full markdown / structured JSON
 reader.trending(days=7, limit=30)                  # trending papers (days 1~30)
-reader.talent_search(query, semantic=True)         # scholar search (spends agent quota)
-reader.talent_survey(person_id, refresh=False)     # full profile for one scholar
+reader.fa()                                        # FAClient for the 1stAuthor domains (below)
 reader.social_impact(arxiv_id)                     # popularity metrics
 reader.pmc_head(pmc_id) / reader.pmc_json(pmc_id)  # PubMed Central
 reader.biomed_search(...) / reader.biomed_data(...) # bioRxiv / medRxiv
 ```
+
+### 1stAuthor domains (`FAClient`)
+
+`FAClient` (or `reader.fa()`) covers `deepxiv fa` from Python. See [FA.md § Python](FA.md#10-python-api).
 
 <details>
 <summary><b><code>reader.search()</code> parameters</b></summary>
@@ -730,7 +718,7 @@ results = reader.search("agent")  # Outputs logs
 - **`ask` missed the point?** Rephrase more specifically rather than raising `--effort` — effort adds reading rounds but can't redirect first-round recall.
 - **`ask` listed papers unrelated to the answer?** That's the retrieval set, not the citation list. `--all-sources` shows it in full.
 - **A search returns 0 results?** Loosen filters — stacked date and citation constraints over-narrow quickly.
-- **`talent survey` says no scholar with that ID?** IDs come from `deepxiv talent search`; the index doesn't use arXiv or Scholar IDs.
+- **`deepxiv fa` problems?** See [FA.md § Troubleshooting](FA.md#13-troubleshooting).
 - **Agent errors with `Reasoning content is only supported as the last assistant message`?** Reasoning models need thinking off for multi-round tool use: `deepxiv agent query "…" --disable-thinking`, or `Agent(..., enable_thinking=False)`.
 - **`agent.add_paper()` on a brand-new paper?** Returns `False` when the paper isn't indexed yet — papers under 1–3 days old often aren't.
 
