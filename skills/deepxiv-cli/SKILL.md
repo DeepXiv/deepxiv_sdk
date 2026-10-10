@@ -18,6 +18,7 @@ use_cases: ["literature-search", "paper-analysis", "knowledge-synthesis", "resea
 - 📄 Read papers section-by-section (save tokens!)
 - 🧠 Use built-in AI agent for analysis
 - 📊 Access biomedical literature (PMC)
+- 👥 Search researchers, statutes, judgments, trials and more via 1stAuthor (`deepxiv fa`)
 
 **When to use**: User wants to search, read, or analyze academic papers
 
@@ -38,8 +39,9 @@ use_cases: ["literature-search", "paper-analysis", "knowledge-synthesis", "resea
 | Preview first 10k chars | `deepxiv paper <id> --preview` | `deepxiv paper 2409.05591 --preview` |
 | Get full text | `deepxiv paper <id>` | `deepxiv paper 2409.05591` |
 | Access biomedical paper | `deepxiv pmc <id>` | `deepxiv pmc PMC544940` |
-| Find researchers on a topic | `deepxiv talent search` | `deepxiv talent search "young RAG faculty" --semantic` |
-| Read one researcher's profile | `deepxiv talent survey <id>` | `deepxiv talent survey 257` |
+| Find researchers on a topic | `deepxiv fa search talent` | `deepxiv fa search talent "RAG" -F org=清华大学` |
+| Read one researcher's profile | `deepxiv fa read talent <id>` | `deepxiv fa read talent 257` |
+| Search statutes, judgments, trials, drugs, CVEs... | `deepxiv fa search <domain>` | `deepxiv fa search law "个人信息保护"` |
 | Intelligent analysis | `deepxiv agent query` | `deepxiv agent query "analyze this paper"` |
 
 ---
@@ -212,36 +214,51 @@ deepxiv token
 
 ---
 
-### 5. Find Researchers (`deepxiv talent`) — beta
+### 5. Researchers, Law, Trials and More (`deepxiv fa`) — beta
 
-**Availability**: ships in `1.1.0b1`, source install only (`pip install git+https://github.com/DeepXiv/deepxiv_sdk.git`). The talent index is still being built out, so coverage is uneven — a search that returns thin or irrelevant people is a data gap, not a bad query.
+**Availability**: ships in `1.2.0b1`, source install only (`pip install git+https://github.com/DeepXiv/deepxiv_sdk.git`).
 
-**When to use**: You need people, not papers — who works on a topic, and what is their record
+**When to use**: The answer lives outside papers — people (`talent`), statutes
+(`law`, `us_law`), court judgments (`cases`), clinical trials, drugs, grants,
+filings, standards, CVEs, the Federal Register. These are 1stAuthor's domains,
+reached with the deepxiv token; no other key is needed.
 
 ```bash
-# Semantic search: describe the person you want in a sentence
-deepxiv talent search "young faculty working on retrieval-augmented generation" --semantic --limit 5
+deepxiv fa domains                 # list domains (free)
+deepxiv fa spec talent             # filters, read levels/extras and their prices (free) — check before filtering
 
-# Keyword mode: matches names and affiliations
-deepxiv talent search "Zhicheng Dou"
+# search → read, same as papers
+deepxiv fa search talent "Zhicheng Dou"                       # names: Chinese, pinyin, English
+deepxiv fa search talent "RAG" -F org=清华大学 -F "h_index>=30" --top-k 5
+deepxiv fa read talent 257                                    # profile (default level)
+deepxiv fa read talent 257 --level brief                      # card only — cheapest
+deepxiv fa read talent 257 --level full                       # full researched profile, markdown
+deepxiv fa read talent 257 --extra network                    # coauthors / advisors / students
+deepxiv fa search law "个人信息保护" --top-k 5 --json
 
-# Filter and sort
-deepxiv talent search --tags LLM,Agent --career-stage student --sort total_citations --limit 10
+deepxiv fa resolve "Zhicheng Dou" 文继荣                      # batch names → talent ids
+deepxiv fa facets talent role_norm                            # values usable in -F
 
-# Full profile by ID (IDs come from search)
-deepxiv talent survey 257                    # text summary
-deepxiv talent survey 257 --format markdown  # the generated report
-deepxiv talent survey 257 --no-refresh       # read-only, no Scholar refresh
-deepxiv talent survey 257 --json             # raw JSON
+# cited answer over a domain (registered key, agentic quota)
+deepxiv fa ask "who works on RAG at Renmin University" --domain talent
+deepxiv fa ask "个人信息出境需要满足什么条件"                   # no --domain: auto-routed
 ```
 
-**Output**: search gives id, names, affiliation, h-index, citations, tags.
-survey adds bio, education, work history, links, open-source projects, and
-publication metrics.
+**Filters**: `-F k=v`, `k=a,b` (any), `k>=n`, `k<=n`, `k=n..m`, `k~text`.
+Field names differ per domain — take them from `deepxiv fa spec DOMAIN`.
 
-**Quota**: 1 agentic call each — the same pool as `deepxiv ask` (free 300/day).
-Requires a registered key. Profiles older than ~14 days refresh from Google
-Scholar automatically on `survey`; use `--no-refresh` to avoid that.
+**Output**: data on stdout, quota/routing/sources on stderr. `--json` gives the
+full response for parsing.
+
+**Cost**: search/read/facets/resolve draw on the general daily limit at
+1stAuthor's prices (search 2, read 1–10 by level; `spec` lists them). Read at
+`--level brief` first, go deeper only when needed. `fa ask` uses the agentic
+pool like `deepxiv ask` and 403s on the auto-registered token — tell the user to
+register at https://data.rag.ac.cn/register; `fa search`/`read` still work.
+
+**Deprecated**: `deepxiv talent search|survey` are aliases for
+`fa search talent` / `fa read talent`. IDs from the old talent index don't
+carry over.
 
 ---
 

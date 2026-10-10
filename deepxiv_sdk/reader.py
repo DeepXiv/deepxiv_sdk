@@ -6,6 +6,7 @@ import json as _json
 import logging
 import requests
 import time
+import warnings
 from typing import Dict, Iterator, List, Optional, Any, Union
 from urllib.parse import urljoin
 
@@ -93,7 +94,6 @@ class Reader:
         self.base_url = base_url.rstrip("/")
         self.arxiv_endpoint = f"{self.base_url}/arxiv/"
         self.pmc_endpoint = f"{self.base_url}/pmc/"
-        self.talent_endpoint = f"{self.base_url}/talent"
         self.agent_search_endpoints = {
             "arxiv": f"{self.base_url}/arxiv/agent/search",
             "web": f"{self.base_url}/web/agent/search",
@@ -1259,134 +1259,35 @@ class Reader:
         logger.info(f"biomed_data (source={source}, type={data_type}) for '{source_id}' completed")
         return result or {}
 
-    # ========== Talent (Scholar Profile) Methods ==========
+    # ========== Talent (deprecated: use FAClient) ==========
 
-    # Career stages accepted by the talent search endpoint.
-    TALENT_CAREER_STAGES = ("student", "junior", "senior")
-    # Profile-depth filters accepted by the talent search endpoint.
-    TALENT_INVESTIGATED = ("profile", "deep", "any", "scholar")
-    # Sort keys accepted by the talent search endpoint.
-    TALENT_SORTS = (
-        "h_index",
-        "total_citations",
-        "last_paper_at",
-        "updated_at",
-        "created_at",
-    )
-    # Quota units spent per talent call, shared with the agentic search pool.
-    TALENT_COST = 1
+    def fa(self) -> "FAClient":
+        """Client for the 1stAuthor domains (talent, law, cases, ...) with this token."""
+        from .fa import FAClient
+        return FAClient(token=self.token, base_url=f"{self.base_url}/fa", timeout=self.timeout)
 
-    def talent_search(
-        self,
-        query: Optional[str] = None,
-        semantic: bool = False,
-        tags: Optional[Any] = None,
-        career_stage: Optional[str] = None,
-        investigated: Optional[str] = None,
-        sort: str = "h_index",
-        order: str = "desc",
-        limit: int = 20,
-        offset: int = 0,
-    ) -> Dict[str, Any]:
+    def talent_search(self, query: str, limit: int = 10, offset: int = 0, **_ignored: Any) -> Dict[str, Any]:
+        """Deprecated: use ``reader.fa().search("talent", query)``.
+
+        The old ``/talent/search`` endpoint is gone (410). This forwards to the
+        1stAuthor talent domain, whose response shape and person IDs differ
+        from the old index. Old filters (``semantic``, ``tags``, ``sort``...)
+        are ignored.
         """
-        Search the scholar/talent index.
-
-        Args:
-            query: Query string. Without ``semantic`` it matches names and
-                affiliations; with ``semantic=True`` it accepts a natural
-                language sentence and runs vector retrieval.
-            semantic: Enable semantic (sentence-level) retrieval.
-            tags: Research tag filter — a comma-separated string or a list of
-                strings. Multiple tags are OR-ed.
-            career_stage: One of :attr:`TALENT_CAREER_STAGES`.
-            investigated: Profile-depth filter, one of
-                :attr:`TALENT_INVESTIGATED`.
-            sort: Sort key, one of :attr:`TALENT_SORTS` (default ``h_index``).
-            order: ``"desc"`` (default) or ``"asc"``.
-            limit: Number of results (default: 20).
-            offset: Pagination offset (default: 0).
-
-        Returns:
-            ``{"persons": [...], "total": ..., "limit": ..., "offset": ...,
-            "semantic": ..., "quota": {...}, "cached": ...}``
-
-        Raises:
-            ValueError: If an enum argument is outside the accepted set.
-            AuthenticationError: If the token is missing or invalid.
-            RateLimitError: If the agentic quota for the day is exhausted.
-
-        Note:
-            Each call spends one unit of the agentic quota pool shared with
-            :meth:`agent_search` and :meth:`talent_survey`.
-        """
-        if career_stage and career_stage not in self.TALENT_CAREER_STAGES:
-            raise ValueError(
-                f"career_stage must be one of {self.TALENT_CAREER_STAGES}"
-            )
-        if investigated and investigated not in self.TALENT_INVESTIGATED:
-            raise ValueError(
-                f"investigated must be one of {self.TALENT_INVESTIGATED}"
-            )
-        if sort and sort not in self.TALENT_SORTS:
-            raise ValueError(f"sort must be one of {self.TALENT_SORTS}")
-        if order not in ("asc", "desc"):
-            raise ValueError('order must be "asc" or "desc"')
-
-        params: Dict[str, Any] = {
-            "sort": sort,
-            "order": order,
-            "limit": limit,
-            "offset": offset,
-        }
-        if query:
-            params["q"] = query
-        if semantic:
-            params["semantic"] = "true"
-        if tags:
-            params["tags"] = tags if isinstance(tags, str) else ",".join(tags)
-        if career_stage:
-            params["career_stage"] = career_stage
-        if investigated:
-            params["investigated"] = investigated
-
-        result = self._make_request(f"{self.talent_endpoint}/search", params=params)
-        logger.info(f"talent_search for '{query}' completed")
-        return result or {}
-
-    def talent_survey(
-        self,
-        person_id: Any,
-        refresh: Optional[bool] = None,
-    ) -> Dict[str, Any]:
-        """
-        Fetch the full profile of one scholar.
-
-        Args:
-            person_id: Person ID as returned by :meth:`talent_search`.
-            refresh: ``True`` forces a Google Scholar refresh, ``False`` forces
-                a read-only lookup. ``None`` (default) lets the server decide
-                by profile freshness (it refreshes after ~14 days).
-
-        Returns:
-            ``{"person": {...}, "papers": [...], "scholar": {...},
-            "quota": {...}}``
-
-        Raises:
-            NotFoundError: If no scholar has this ID.
-            AuthenticationError: If the token is missing or invalid.
-            RateLimitError: If the agentic quota for the day is exhausted.
-
-        Note:
-            Each call spends one unit of the agentic quota pool. A call that
-            triggers a refresh also costs an upstream scrape, so pass
-            ``refresh=False`` when a cached profile is good enough.
-        """
-        params: Dict[str, Any] = {}
-        if refresh is not None:
-            params["refresh"] = "true" if refresh else "false"
-
-        result = self._make_request(
-            f"{self.talent_endpoint}/survey/{person_id}", params=params
+        warnings.warn(
+            'Reader.talent_search is deprecated; use Reader.fa().search("talent", query)',
+            DeprecationWarning, stacklevel=2,
         )
-        logger.info(f"talent_survey for '{person_id}' completed")
-        return result or {}
+        return self.fa().search("talent", query, top_k=limit, offset=offset or None)
+
+    def talent_survey(self, person_id: Any, **_ignored: Any) -> Dict[str, Any]:
+        """Deprecated: use ``reader.fa().read("talent", person_id)``.
+
+        The old ``/talent/survey/{id}`` endpoint is gone (410); IDs from the
+        old index do not carry over.
+        """
+        warnings.warn(
+            'Reader.talent_survey is deprecated; use Reader.fa().read("talent", person_id)',
+            DeprecationWarning, stacklevel=2,
+        )
+        return self.fa().read("talent", person_id)

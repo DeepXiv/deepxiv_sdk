@@ -29,13 +29,14 @@
 | **问文献** | `deepxiv ask` | 一个问题进去，一个带真实 arXiv ID 引用的答案出来 |
 | **问网页** | `deepxiv ask --web` | 同上，数据来自 Google 加缓存页面正文 |
 | **分层读论文** | `deepxiv search` / `paper` | 先搜、再判断、最后只读需要的那一节 |
-| **找人** | `deepxiv talent` | 谁在做这个方向、人在哪、履历如何 |
+| **找人** | `deepxiv fa … talent` | 谁在做这个方向、人在哪、履历如何 |
+| **论文之外** | `deepxiv fa` | 法规、判决、临床试验、药品、基金、公告、标准、CVE —— 经 1stAuthor |
 
 ## 解决什么问题
 
 一个 agent 要调研某个课题，现有的选择都不好。搜索 API 给回十条蓝链接和摘要 —— 够说出论文名字，永远不够回答"它在 HumanEval 上报了多少加速比"。PDF 能回答，但一篇 5 万 token，而且是一整块没有结构可导航的文本。
 
-DeepXiv 把这个取舍消掉。论文是预先解析好的，agent 可以先花 300 token 看 TLDR，再决定要不要花 5k token 读 Methods。需要证据支撑的问题交给 agentic 接口，它会真的去读原文，返回可核查的引用。而"谁在做"是调研的另一半，所以同一套接口也能检索学者。
+DeepXiv 把这个取舍消掉。论文是预先解析好的，agent 可以先花 300 token 看 TLDR，再决定要不要花 5k token 读 Methods。需要证据支撑的问题交给 agentic 接口，它会真的去读原文，返回可核查的引用。而"谁在做"是调研的另一半，所以同一个 token 也能检索学者 —— 还能经 [1stAuthor](https://1stauthor.com) 的垂域查法规、临床试验、药品、基金等。
 
 ## 安装
 
@@ -43,13 +44,13 @@ DeepXiv 把这个取舍消掉。论文是预先解析好的，agent 可以先花
 pip install deepxiv-sdk
 ```
 
-> **Beta：** `deepxiv talent` 还没上 PyPI。功能在 `1.1.0b1` 里，人才库数据仍在建设中，暂时用源码安装：
+> **Beta：** `deepxiv fa`（1stAuthor 垂域，含 talent）还没上 PyPI。功能在 `1.2.0b1` 里，暂时用源码安装：
 >
 > ```bash
 > pip install git+https://github.com/DeepXiv/deepxiv_sdk.git
 > ```
 
-`deepxiv` 首次使用会自动注册一个 token。agentic 命令（`ask`、`talent`）需要注册过的 key —— 在 [data.rag.ac.cn/register](https://data.rag.ac.cn/register) 领一个，然后：
+`deepxiv` 首次使用会自动注册一个 token。agentic 命令（`ask`、`fa ask`）需要注册过的 key —— 在 [data.rag.ac.cn/register](https://data.rag.ac.cn/register) 领一个，然后：
 
 ```bash
 deepxiv config --token YOUR_REGISTERED_KEY
@@ -98,12 +99,20 @@ deepxiv search "speculative decoding" --date-from 2025-01 --min-citations 20 --l
 **4. 找到背后的人。** 知道方法出自谁的组、他们还做过什么，这个方法的价值才完整。
 
 ```bash
-deepxiv talent search "做投机解码的研究者" --semantic --limit 5
-deepxiv talent survey 257                    # 完整画像：简介、教育、履历、开源、论文指标
-deepxiv talent survey 257 --format markdown  # 生成好的报告
+deepxiv fa search talent "投机解码" --top-k 5                # 人名、方向都行
+deepxiv fa search talent "RAG" -F org=清华大学 -F "h_index>=30"
+deepxiv fa read talent 12                                    # 画像：简介、教育、履历、代表作、指标
+deepxiv fa read talent 12 --level full                       # 完整调查档案（markdown）
 ```
 
-语义模式接一整句话；去掉 `--semantic` 则按人名和单位精确匹配。`search` 给出的 ID 喂给 `survey`。
+中文名、拼音、英文名和研究方向都能直接搜。`search` 给出的 ID 喂给 `read`；`deepxiv fa spec talent` 列出可用过滤条件和各读取级别的价格。`deepxiv talent search|survey` 作为已弃用的别名仍可用，但旧库的 ID 在新库里不通用。
+
+同一套动词也适用于 1stAuthor 的其它垂域 —— `deepxiv fa domains` 列出全部：
+
+```bash
+deepxiv fa search law "个人信息保护" --top-k 5
+deepxiv fa ask "个人信息出境需要满足什么条件" --domain law   # 需注册 key，扣 agentic 配额
+```
 
 **5. 问题不在学术圈里时，换个后端。** 授权、定价、上周谁发了什么 —— 同一个命令。
 
@@ -122,7 +131,7 @@ from deepxiv_sdk import Reader
 reader = Reader(token="YOUR_REGISTERED_KEY")   # Reader 需要显式传 token
 answer = reader.agent_search("what speedup does DEER report on HumanEval")["answer"]
 method = reader.section("2512.15176", "Method")
-people = reader.talent_search("speculative decoding", semantic=True, limit=5)
+people = reader.fa().search("talent", "speculative decoding", top_k=5)
 ```
 
 ## 文档

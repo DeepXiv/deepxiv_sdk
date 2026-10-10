@@ -2,7 +2,7 @@
 deepxiv-sdk - Agentic search over arXiv and the web, with real citations.
 """
 
-__version__ = "1.1.0b1"
+__version__ = "1.2.0b1"
 
 from .reader import (
     Reader,
@@ -14,6 +14,7 @@ from .reader import (
     NotFoundError,
     ServerError,
 )
+from .fa import FAClient, FAError, FilterError, build_filters
 
 __all__ = [
     "Reader",
@@ -24,6 +25,10 @@ __all__ = [
     "RateLimitError",
     "NotFoundError",
     "ServerError",
+    "FAClient",
+    "FAError",
+    "FilterError",
+    "build_filters",
 ]
 
 # Try to import agent components if langgraph is available

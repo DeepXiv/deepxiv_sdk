@@ -18,6 +18,7 @@ from .reader import (
     NotFoundError,
     RateLimitError,
 )
+from .fa import FAClient, FAError, FilterError, build_filters, REGISTER_URL as FA_REGISTER_URL
 
 # Try to load .env file if python-dotenv is available
 try:
@@ -1102,24 +1103,27 @@ ASK (agentic search → cited answer; needs a REGISTERED key, separate quota):
   auto-registered SDK token returns 403. Quota is separate from the general
   daily limit: free 300/day, premium 10000. Each call costs 1.
 
-TALENT (scholar profiles; shares the agentic quota above, 1 call each):
-  deepxiv talent search "query"     Find scholars by name, affiliation or topic
-    --semantic, -s                  Read the query as a natural-language sentence
-    --tags T1,T2                    Filter by research tags (OR-ed)
-    --career-stage STAGE            student / junior / senior
-    --investigated LEVEL            profile / deep / any / scholar
-    --sort KEY                      h_index (default) / total_citations /
-                                    last_paper_at / updated_at / created_at
-    --order desc|asc                Sort order (default: desc)
-    --limit, -l N / --offset N      Pagination (default: 10 / 0)
-    --json                          JSON output
+1STAUTHOR DOMAINS (talent, law, cases, trials, drugs, grants, cve, ...):
+  deepxiv fa domains                List domains (free)
+  deepxiv fa spec DOMAIN            Filters, read levels/extras, prices (free)
+  deepxiv fa search DOMAIN "query"  Search one domain
+    --filter, -F EXPR               k=v / k=a,b / k>=n / k<=n / k=n..m / k~text
+    --top-k, -k N / --offset N      Hits (1~100, default: 10) / pagination
+    --mode MODE / --head            Retrieval mode / richer hits (costs more)
+  deepxiv fa read DOMAIN ID [ID..]  Read one document (or several)
+    --level, -l LEVEL               brief / detail / full
+    --extra, -e NAME                One extra facet (see spec)
+    --view NAME / --format FMT      Named view / json, md, html
+    --param, -p k=v                 Extra query parameter (repeatable)
+  deepxiv fa facets DOMAIN FIELD    Value counts for a filter field
+  deepxiv fa resolve NAME [NAME..]  Person names → talent ids
+  deepxiv fa ask "question"         Cited answer (registered key, agentic quota)
+    --domain, -d DOMAIN             Pick the domain (default: auto-routed)
+    --effort, -e LEVEL              low / medium / high
+  deepxiv fa whoami                 Token source and today's quota
 
-  deepxiv talent survey ID          Full profile for one scholar
-    --format, -f FORMAT             text (default) / json / markdown report
-    --no-refresh                    Read-only; skip the Google Scholar refresh
-    --refresh                       Force a refresh (costs an upstream scrape)
-
-  Profiles older than ~14 days refresh automatically on survey.
+  search/read/facets/resolve spend the general daily limit at 1stAuthor's
+  prices. `deepxiv talent search|survey` are deprecated aliases.
 
 SEARCH:
   deepxiv search "query"            Search for papers (arXiv by default)
@@ -1178,6 +1182,12 @@ EXAMPLES:
   deepxiv ask "test-time compute scaling laws" > answer.md
   deepxiv ask "Anthropic Claude API pricing tiers" --web
   deepxiv ask "NeurIPS 2025 best paper winner" --web --search-type news
+
+  # 1stAuthor domains
+  deepxiv fa search talent "文继荣"
+  deepxiv fa search talent "信息检索 教授" -F org=中国人民大学 -F "h_index>=30"
+  deepxiv fa read talent 12
+  deepxiv fa search law "个人信息保护" --top-k 5
 
   # Search examples
   deepxiv search "transformer architecture" --limit 5
@@ -1543,236 +1553,601 @@ def debug(verbose):
             click.echo(f"\n❌ Test request failed: {e}")
 
 
-@main.group()
-def talent():
-    """Search scholars and read full researcher profiles.
+@main.group(name="fa")
+def fa():
+    """1stAuthor vertical domains: researchers, statutes, judgments, trials, drugs...
 
-    Backed by the talent index (Google Scholar + OpenAlex + web sources).
-    Calls spend the same agentic quota pool as `deepxiv ask`.
+    Runs through data.rag.ac.cn/fa with your deepxiv token. search, read,
+    facets and resolve spend your general daily limit at 1stAuthor's prices
+    (`deepxiv fa spec <domain>` lists them); domains, spec and whoami are free.
+    ask spends the agentic quota and needs a registered account key.
 
+    Data goes to stdout; quota, routing and sources go to stderr.
+
+    \b
     Examples:
-        deepxiv talent search "young faculty working on RAG" --semantic
-        deepxiv talent survey 257
+        deepxiv fa domains
+        deepxiv fa spec talent
+        deepxiv fa search talent "文继荣"
+        deepxiv fa search talent "具身智能" -F org=清华大学 -F h_index>=30
+        deepxiv fa read talent 12 --level brief
+        deepxiv fa search law "个人信息保护" --top-k 5
+        deepxiv fa ask "国内做信息检索的教授有哪些" --domain talent
     """
     pass
 
 
-def _print_talent_person(person, index=None):
-    """One-line-per-field summary of a person row from talent search."""
-    name = person.get("name_zh") or person.get("name_en") or "N/A"
-    name_alt = person.get("name_en") if person.get("name_zh") else None
-    header = f"#{index} " if index is not None else ""
-    click.echo(f"\n{header}[{person.get('id')}] {name}" + (f" ({name_alt})" if name_alt else ""))
+_FA_TOKEN_OPTION = click.option(
+    "--token", "-t", default=None, envvar="DEEPXIV_TOKEN",
+    help="API token (or set DEEPXIV_TOKEN env var)",
+)
+_FA_JSON_OPTION = click.option("--json", "json_output", is_flag=True,
+                               help="Print the full JSON response")
 
-    affiliation = person.get("primary_affiliation")
-    location = person.get("location")
-    if affiliation or location:
-        click.echo(f"  🏛  {affiliation or 'N/A'}" + (f" · {location}" if location else ""))
 
-    h_index = person.get("h_index")
-    citations = person.get("total_citations")
-    if h_index is not None or citations is not None:
-        click.echo(f"  📊 h-index: {h_index if h_index is not None else 'N/A'} | "
-                   f"citations: {citations if citations is not None else 'N/A'}")
+def _fa_client(token_option):
+    token = ensure_token(token_option)
+    if not token:
+        sys.exit(1)
+    return FAClient(token=token)
 
-    tags = person.get("tags") or []
-    if tags:
-        click.echo(f"  🏷  {', '.join(str(t) for t in tags[:8])}")
+
+def _exit_on_fa_error(error):
+    """Explain an FAError on stderr, then exit non-zero."""
+    status = error.status
+    if error.needs_registered_key:
+        click.echo("\n❌ `deepxiv fa ask` 需要注册账号的 key，自动申请的 SDK token 不能用。 / "
+                   "`deepxiv fa ask` needs a registered account key; the auto-registered SDK token is not eligible.\n",
+                   err=True)
+        click.echo(f"请到 {FA_REGISTER_URL} 注册，再用 `deepxiv config` 填入新 key。 / "
+                   f"Register at {FA_REGISTER_URL}, then save the key with `deepxiv config`.\n", err=True)
+        click.echo("search / read / facets / resolve 仍可用当前 token。 / "
+                   "search, read, facets and resolve still work with your current token.\n", err=True)
+    elif status == 401:
+        handle_auth_error()
+    elif status == 429:
+        if error.retry_after is not None:
+            click.echo(f"\n❌ Too many concurrent requests: {error.message}", err=True)
+            click.echo(f"   Retry in {error.retry_after:g}s (ask allows 4 at once per key).\n", err=True)
+        elif error.code:
+            # fa-api's own per-user throttle, passed through as {"error": {...}}.
+            click.echo(f"\n❌ Rate-limited by 1stAuthor: {error.message}", err=True)
+            click.echo("   Slow down and retry in a minute.\n", err=True)
+        else:
+            click.echo(f"\n❌ {error.message}", err=True)
+            handle_rate_limit_error()
+    else:
+        click.echo(f"\n❌ {error}", err=True)
+        details = error.details if isinstance(error.details, dict) else {}
+        for key, value in details.items():
+            if isinstance(value, list):
+                click.echo(f"   {key}: {', '.join(str(v) for v in value)}", err=True)
+        click.echo("", err=True)
+    sys.exit(1)
+
+
+def _run_fa_call(fn):
+    try:
+        return fn()
+    except FAError as e:
+        _exit_on_fa_error(e)
+
+
+def _print_fa_quota(body, client):
+    """One stderr line with what the call cost and what is left today."""
+    quota = ((body or {}).get("meta") or {}).get("quota") or client.last_quota.get("general")
+    if not quota or quota.get("remaining") is None:
+        return
+    line = f"💳 cost {quota.get('cost', '?')} · {quota['remaining']}/{quota.get('daily_limit', '?')} left today"
+    click.echo(line, err=True)
+    if quota["remaining"] <= 20:
+        click.echo(f"⚠️  Daily limit nearly used up. Get a higher limit at {FA_REGISTER_URL}", err=True)
+
+
+def _fa_text(value):
+    """Pick a display string out of a str or a {"zh", "en", ...} dict."""
+    if isinstance(value, dict):
+        return value.get("zh") or value.get("en") or value.get("src") or ""
+    return value if isinstance(value, str) else ""
+
+
+# Brief fields differ per domain; these are tried in order.
+_FA_TITLE_KEYS = ("name_line", "title", "law_title", "brief_title", "spl_name", "company_name",
+                  "resolved_title", "citation", "cause", "affected")
+_FA_SUMMARY_KEYS = ("one_liner_zh", "summary_zh", "one_liner", "summary", "role")
+_FA_STAT_KEYS = (("h_index", "h-index"), ("citations_all", "citations"), ("severity", "severity"),
+                 ("cvss_score", "cvss"), ("overall_status", "status"), ("status", "status"),
+                 ("state", "state"), ("jurisdiction", "jurisdiction"), ("court", "court"),
+                 ("verdictno", "case no."), ("form", "form"), ("agency", "agency"),
+                 ("sponsor", "sponsor"), ("judge_date", "date"), ("filed_at", "filed"),
+                 ("pub_date", "published"), ("issue_date", "issued"), ("start_year", "start"),
+                 ("fy", "FY"))
+
+
+def _fa_hit_title(brief):
+    title = next((_fa_text(brief.get(k)) for k in _FA_TITLE_KEYS if _fa_text(brief.get(k))), "")
+    if brief.get("article"):
+        title = f"{title} {brief['article']}".strip()
+    heading = brief.get("heading_zh") or brief.get("heading") or brief.get("section_title")
+    if heading and heading not in title:
+        title = f"{title} · {heading}" if title else heading
+    return title
+
+
+def _print_fa_hit(hit, index):
+    brief = hit.get("brief") or {}
+    click.echo(f"\n#{index} [{hit.get('id')}] {_fa_hit_title(brief)}")
+    summary = next((_fa_text(brief.get(k)) for k in _FA_SUMMARY_KEYS if _fa_text(brief.get(k))), "")
+    if summary:
+        click.echo(f"  {summary[:200]}")
+    stats, seen = [], set()
+    for key, label in _FA_STAT_KEYS:
+        if brief.get(key) not in (None, "") and label not in seen:
+            seen.add(label)
+            stats.append(f"{label}: {brief[key]}")
+    if stats:
+        click.echo(f"  {' | '.join(stats[:5])}")
+    areas = brief.get("areas") or brief.get("tags") or brief.get("conditions")
+    if isinstance(areas, list) and areas:
+        click.echo(f"  🏷  {', '.join(str(a) for a in areas[:8])}")
+
+
+@fa.command(name="domains")
+@_FA_TOKEN_OPTION
+@_FA_JSON_OPTION
+def fa_domains(token, json_output):
+    """List the domains you can search. Free."""
+    client = _fa_client(token)
+    result = _run_fa_call(client.domains)
+    if json_output:
+        click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+        return
+    for d in result.get("domains") or []:
+        docs = (d.get("corpus") or {}).get("docs")
+        size = f"{docs:,} docs" if isinstance(docs, int) else ""
+        ask_mark = "ask" if d.get("ask") else "   "
+        click.echo(f"{d.get('id', '?'):<12} {d.get('status', ''):<6} {ask_mark}  {size:>16}  {d.get('name', '')}")
+    click.echo("\n💡 Details and prices: deepxiv fa spec <domain>", err=True)
+
+
+@fa.command(name="spec")
+@click.argument("domain")
+@_FA_TOKEN_OPTION
+@_FA_JSON_OPTION
+def fa_spec(domain, token, json_output):
+    """Show a domain's filters, read levels, extras and prices. Free."""
+    client = _fa_client(token)
+    s = _run_fa_call(lambda: client.spec(domain))
+    if json_output:
+        click.echo(json.dumps(s, indent=2, ensure_ascii=False))
+        return
+
+    click.echo(f"{s.get('name', domain)} ({s.get('id', domain)}, {s.get('status', '?')})")
+    if s.get("description"):
+        click.echo(s["description"])
+    if s.get("id_field"):
+        click.echo(f"\nid: {s['id_field']}" + (f" (e.g. {s['id_example']})" if s.get("id_example") else ""))
+
+    search = s.get("search") or {}
+    if search:
+        credits = search.get("credits") or {}
+        modes = ", ".join(search.get("modes") or [])
+        click.echo(f"\nSEARCH  modes: {modes or '-'}  cost: "
+                   + ", ".join(f"{k} {v}" for k, v in credits.items()))
+        for name, fdef in (search.get("filters") or {}).items():
+            ops = "/".join(fdef.get("ops") or [])
+            desc = fdef.get("desc_en") or fdef.get("desc") or ""
+            click.echo(f"  -F {name:<18} {fdef.get('type', ''):<9} {ops:<14} {desc[:90]}")
+
+    read = s.get("read") or {}
+    if read.get("levels"):
+        click.echo(f"\nREAD  --level (default {read.get('default_level', '?')})")
+        for name, ldef in read["levels"].items():
+            click.echo(f"  {name:<10} {ldef.get('credits', '?'):>3} cr  {(ldef.get('desc_en') or ldef.get('desc') or '')[:100]}")
+    if read.get("extras"):
+        click.echo("READ  --extra")
+        for name, edef in read["extras"].items():
+            click.echo(f"  {name:<14} {edef.get('credits', '?'):>3} cr  {(edef.get('desc_en') or edef.get('desc') or '')[:100]}")
+
+    ask_def = s.get("ask")
+    if isinstance(ask_def, dict):
+        credits = ask_def.get("credits") or {}
+        click.echo("\nASK  --effort " + ", ".join(credits) + "  (agentic quota, registered key)")
+    elif ask_def is False:
+        click.echo("\nASK  not available for this domain")
+
+    if s.get("facets"):
+        click.echo(f"\nFACETS  {', '.join(s['facets'])}")
+    samples = s.get("free_samples") or {}
+    if samples.get("queries") or samples.get("ids"):
+        click.echo(f"\nFree samples: queries {samples.get('queries') or []}  ids {samples.get('ids') or []}")
+    for q in s.get("quickstart") or []:
+        click.echo(f"\n• {q.get('task_en') or q.get('task')}\n  {q.get('call')}")
+
+
+@fa.command(name="search")
+@click.argument("domain")
+@click.argument("query")
+@click.option("--filter", "-F", "filters", multiple=True,
+              help="Repeatable: k=v, k=a,b, k>=n, k<=n, k=n..m, k~text (fields: deepxiv fa spec DOMAIN)")
+@click.option("--top-k", "-k", default=10, type=click.IntRange(1, 100), help="Number of hits (default: 10)")
+@click.option("--offset", default=None, type=click.IntRange(0), help="Pagination offset")
+@click.option("--mode", default=None, help="Retrieval mode, e.g. hybrid / dense / bm25 / name")
+@click.option("--head", is_flag=True, help="Richer hits (fields=head; costs more)")
+@_FA_TOKEN_OPTION
+@_FA_JSON_OPTION
+def fa_search(domain, query, filters, top_k, offset, mode, head, token, json_output):
+    """Search one domain.
+
+    \b
+    Examples:
+        deepxiv fa search talent "文继荣"
+        deepxiv fa search talent "信息检索 教授" -F org=中国人民大学 --top-k 5
+        deepxiv fa search talent "RAG" -F h_index>=30 -F career_stage=junior,senior
+        deepxiv fa search law "个人信息保护" --json
+    """
+    client = _fa_client(token)
+    filter_dict = None
+    if filters:
+        spec = _run_fa_call(lambda: client.spec(domain))
+        try:
+            filter_dict = build_filters(filters, (spec.get("search") or {}).get("filters"))
+        except FilterError as e:
+            click.echo(f"❌ {e}", err=True)
+            sys.exit(2)
+
+    result = _run_fa_call(lambda: client.search(
+        domain, query, top_k=top_k, offset=offset, mode=mode,
+        filters=filter_dict, fields="head" if head else None,
+    ))
+    if json_output:
+        click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+        _print_fa_quota(result, client)
+        return
+
+    hits = result.get("hits") or []
+    for warning in result.get("warnings") or []:
+        click.echo(f"⚠️  {warning}", err=True)
+    if not hits:
+        click.echo("ℹ️  No hits. Loosen the filters or rephrase the query.", err=True)
+    for i, hit in enumerate(hits, start=(offset or 0) + 1):
+        _print_fa_hit(hit, i)
+    if hits:
+        click.echo(f"\n💡 Read one: deepxiv fa read {domain} <ID>", err=True)
+    _print_fa_quota(result, client)
+
+
+def _parse_params(pairs):
+    params = {}
+    for pair in pairs:
+        key, sep, value = pair.partition("=")
+        if not sep or not key:
+            click.echo(f"❌ --param expects key=value, got {pair!r}", err=True)
+            sys.exit(2)
+        params[key] = value
+    return params
+
+
+@fa.command(name="read")
+@click.argument("domain")
+@click.argument("ids", nargs=-1, required=True)
+@click.option("--level", "-l", default=None, help="brief / detail / full (default: the domain's default)")
+@click.option("--extra", "-e", default=None, help="One extra facet, e.g. papers / network / scholar for talent")
+@click.option("--view", default=None, help="Read a named view instead (GET /doc/{id}?view=…)")
+@click.option("--format", "-f", "output_format", default=None, type=click.Choice(["json", "md", "html"]),
+              help="Server-side rendering of the document")
+@click.option("--param", "-p", "params", multiple=True, help="Extra query parameter key=value (repeatable)")
+@_FA_TOKEN_OPTION
+@_FA_JSON_OPTION
+def fa_read(domain, ids, level, extra, view, output_format, params, token, json_output):
+    """Read one document (or several ids in one call).
+
+    Levels, extras and their prices are listed by `deepxiv fa spec DOMAIN`.
+
+    \b
+    Examples:
+        deepxiv fa read talent 12
+        deepxiv fa read talent 12 --level brief
+        deepxiv fa read talent 12 --extra network
+        deepxiv fa read talent 12 --level full -p section=教育
+        deepxiv fa read talent 12 257 --level brief
+    """
+    if view and (level or extra):
+        click.echo("❌ --view can't be combined with --level / --extra", err=True)
+        sys.exit(2)
+    client = _fa_client(token)
+    query_params = _parse_params(params)
+
+    if len(ids) > 1:
+        if view or output_format:
+            click.echo("❌ Several ids take only --level / --extra", err=True)
+            sys.exit(2)
+        result = _run_fa_call(lambda: client.read_many(
+            domain, ids, level=level, extra=extra, params=query_params or None))
+    elif view:
+        result = _run_fa_call(lambda: client.doc(domain, ids[0], view, **query_params))
+    else:
+        result = _run_fa_call(lambda: client.read(
+            domain, ids[0], level=level, extra=extra, format=output_format, **query_params))
+
+    # level=full / format=md|html come back as "text"; structured levels as "data".
+    data = next((result[k] for k in ("text", "html", "data", "docs", "results")
+                 if result.get(k) is not None), None)
+    if json_output or data is None:
+        click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+    elif isinstance(data, str):
+        click.echo(data)
+    else:
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+    _print_fa_quota(result, client)
+
+
+@fa.command(name="facets")
+@click.argument("domain")
+@click.argument("field")
+@click.option("--limit", default=None, type=click.IntRange(1), help="Number of values")
+@_FA_TOKEN_OPTION
+@_FA_JSON_OPTION
+def fa_facets(domain, field, limit, token, json_output):
+    """Value counts for a filter field (handy for picking -F values).
+
+    \b
+    Example:
+        deepxiv fa facets talent role_norm
+    """
+    client = _fa_client(token)
+    result = _run_fa_call(lambda: client.facets(domain, field, limit))
+    if json_output:
+        click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        for item in result.get("values") or []:
+            click.echo(f"{item.get('count', ''):>10}  {item.get('value')}")
+    _print_fa_quota(result, client)
+
+
+@fa.command(name="resolve")
+@click.argument("names", nargs=-1, required=True)
+@_FA_TOKEN_OPTION
+@_FA_JSON_OPTION
+def fa_resolve(names, token, json_output):
+    """Match person names to talent ids (up to 50 names per call).
+
+    \b
+    Example:
+        deepxiv fa resolve 文继荣 "Zhicheng Dou"
+    """
+    client = _fa_client(token)
+    result = _run_fa_call(lambda: client.resolve(names))
+    if json_output:
+        click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        for item in result.get("results") or []:
+            candidates = item.get("candidates") or []
+            resolved = item.get("resolved")
+            mark = f"→ {resolved}" if resolved is not None else f"({len(candidates)} candidates)"
+            click.echo(f"{item.get('query')} {mark}")
+            for c in candidates[:5]:
+                click.echo(f"   [{c.get('person_id')}] {c.get('name_line', '')}")
+    _print_fa_quota(result, client)
+
+
+def _print_fa_sources(sources):
+    """Sources of an ask answer, on stderr."""
+    groups = []
+    if isinstance(sources, dict):
+        groups = [(k, v) for k, v in sources.items() if isinstance(v, list)]
+    elif isinstance(sources, list):
+        groups = [("sources", sources)]
+    total = sum(len(v) for _, v in groups)
+    if not total:
+        return
+    click.echo(f"\n📚 Sources ({total}):", err=True)
+    for name, items in groups:
+        if len(groups) > 1:
+            click.echo(f"  {name}:", err=True)
+        for i, s in enumerate(items, 1):
+            if not isinstance(s, dict):
+                click.echo(f"  {i}. {s}", err=True)
+                continue
+            ident = s.get("id") or s.get("person_id") or s.get("law_key") or s.get("url") or "?"
+            click.echo(f"  {i}. [{ident}] {_fa_hit_title(s)}", err=True)
+            if s.get("url") and s.get("url") != ident:
+                click.echo(f"     {s['url']}", err=True)
+
+
+@fa.command(name="ask")
+@click.argument("query")
+@click.option("--domain", "-d", default=None,
+              help="Domain to ask (default: let 1stAuthor route it)")
+@click.option("--effort", "-e", default=None, type=click.Choice(["low", "medium", "high"]),
+              help="Agent depth (default: the domain's default)")
+@click.option("--no-stream", is_flag=True, help="Wait for the full answer instead of streaming it")
+@click.option("--no-sources", is_flag=True, help="Skip the sources list")
+@click.option("--verbose", "-v", is_flag=True, help="Show progress, tool calls and quota on stderr")
+@_FA_TOKEN_OPTION
+@_FA_JSON_OPTION
+def fa_ask(query, domain, effort, no_stream, no_sources, verbose, token, json_output):
+    """Ask a question over a 1stAuthor domain and get a cited answer.
+
+    Needs a registered account key (https://data.rag.ac.cn/register) and
+    spends the agentic quota shared with `deepxiv ask`. Without --domain,
+    1stAuthor picks the domain and says which one on stderr.
+
+    The answer goes to stdout; route, sources and quota go to stderr.
+
+    \b
+    Examples:
+        deepxiv fa ask "国内做信息检索的教授有哪些" --domain talent
+        deepxiv fa ask "个人信息出境需要满足什么条件" --domain law --effort high
+        deepxiv fa ask "who works on speculative decoding in Beijing"
+    """
+    client = _fa_client(token)
+
+    if json_output or no_stream:
+        result = _run_fa_call(lambda: client.ask(query, domain, effort=effort))
+        if json_output:
+            click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+        else:
+            route = result.get("route")
+            if isinstance(route, dict) and route.get("domain"):
+                click.echo(f"🧭 routed to {route['domain']}", err=True)
+            click.echo(result.get("answer", ""))
+            if not no_sources:
+                _print_fa_sources(result.get("sources"))
+        _print_ask_quota(client.last_quota.get("agent"), verbose)
+        return
+
+    saw_answer = False
+    failed = None
+    try:
+        for event in client.ask_stream(query, domain, effort=effort):
+            name = event.get("event")
+            if name == "answer_delta":
+                text = event.get("delta") or event.get("text") or ""
+                if text:
+                    saw_answer = True
+                    click.echo(text, nl=False)
+            elif name == "answer":
+                if not saw_answer and event.get("answer"):
+                    saw_answer = True
+                    click.echo(event["answer"], nl=False)
+            elif name == "route":
+                click.echo(f"🧭 routed to {event.get('domain')}", err=True)
+            elif name == "sources":
+                if saw_answer:
+                    click.echo()
+                    saw_answer = False
+                if not no_sources:
+                    sources = event.get("sources")
+                    if sources is None:
+                        sources = {k: v for k, v in event.items() if isinstance(v, list)}
+                    _print_fa_sources(sources)
+            elif name == "error":
+                failed = event
+                break
+            elif name == "done" and verbose:
+                stats = event.get("stats") or event
+                bits = [f"{k}={stats[k]}" for k in ("elapsed_ms", "rounds", "tool_calls") if stats.get(k) is not None]
+                if bits:
+                    click.echo(f"✅ done {' '.join(bits)}", err=True)
+            elif name == "start" and verbose:
+                click.echo(f"🔍 {event.get('domain', domain or '')} effort={event.get('effort')}", err=True)
+            elif name == "tool_call" and verbose:
+                args = event.get("args") or event.get("arguments") or {}
+                click.echo(f"🔧 {event.get('tool') or event.get('name')}({json.dumps(args, ensure_ascii=False)[:120]})", err=True)
+            elif name == "warning" and verbose:
+                click.echo(f"⚠️  {event.get('message', '')}", err=True)
+    except FAError as e:
+        if saw_answer:
+            click.echo()
+        _exit_on_fa_error(e)
+
+    if saw_answer:
+        click.echo()
+    if failed is not None:
+        refunded = " (quota refunded)" if failed.get("refunded") else ""
+        click.echo(f"\n❌ {failed.get('code', 'error')}: {failed.get('message', 'unknown error')}{refunded}\n", err=True)
+        sys.exit(1)
+    _print_ask_quota(client.last_quota.get("agent"), verbose)
+
+
+@fa.command(name="whoami")
+@_FA_TOKEN_OPTION
+@_FA_JSON_OPTION
+def fa_whoami(token, json_output):
+    """Show which token is in use and today's quota. Free."""
+    client = _fa_client(token)
+    result = _run_fa_call(client.whoami)
+    if json_output:
+        click.echo(json.dumps(result, indent=2, ensure_ascii=False))
+        return
+    click.echo(f"token: {result.get('source', '?')} ({result.get('name') or result.get('subject', '')})")
+    quota = result.get("quota") or {}
+    if quota:
+        click.echo(f"general: {quota.get('used')}/{quota.get('daily_limit')} used, {quota.get('remaining')} left")
+    agent_quota = result.get("agent")
+    if agent_quota:
+        click.echo(f"agentic: tier {agent_quota.get('tier')}, {agent_quota.get('used_today')}/"
+                   f"{agent_quota.get('daily_limit')} used, {agent_quota.get('remaining_today')} left")
+    else:
+        click.echo(f"agentic: not available — {result.get('agent_note') or 'register at ' + FA_REGISTER_URL}")
+
+
+# ---- deprecated: `deepxiv talent` → `deepxiv fa … talent` ----------------------
+
+def _talent_deprecated(old, new):
+    click.echo(f"⚠️  `deepxiv talent {old}` is deprecated and will be removed; use `deepxiv fa {new}`.",
+               err=True)
+
+
+@main.group()
+def talent():
+    """[Deprecated] Use `deepxiv fa search talent` / `deepxiv fa read talent`.
+
+    Kept as aliases for one release. Person IDs from the old talent index do
+    not carry over to the new one; look people up again with search.
+    """
+    pass
 
 
 @talent.command(name="search")
 @click.argument("query", required=False)
 @click.option("--token", "-t", default=None, envvar="DEEPXIV_TOKEN", help="API token (or set DEEPXIV_TOKEN env var)")
-@click.option("--semantic", "-s", is_flag=True, default=False,
-              help="Semantic search: treat QUERY as a natural-language sentence")
-@click.option("--tags", default=None,
-              help="Filter by research tags (comma-separated, OR-ed; e.g. 大语言模型,Agent)")
+@click.option("--semantic", "-s", is_flag=True, default=False, help="Ignored (search is always hybrid now)")
+@click.option("--tags", default=None, help="Maps to -F areas=T1,T2")
 @click.option("--career-stage", default=None, type=click.Choice(["student", "junior", "senior"]),
-              help="Filter by career stage")
-@click.option("--investigated", default=None, type=click.Choice(["profile", "deep", "any", "scholar"]),
-              help="Filter by how deeply the profile has been investigated")
-@click.option("--sort", default="h_index",
-              type=click.Choice(["h_index", "total_citations", "last_paper_at", "updated_at", "created_at"]),
-              help="Sort key (default: h_index)")
-@click.option("--order", default="desc", type=click.Choice(["desc", "asc"]), help="Sort order (default: desc)")
-@click.option("--limit", "-l", default=10, type=int, help="Number of results (default: 10)")
-@click.option("--offset", default=0, type=int, help="Pagination offset (default: 0)")
+              help="Maps to -F career_stage=STAGE")
+@click.option("--investigated", default=None, help="Ignored")
+@click.option("--sort", default=None, help="Ignored")
+@click.option("--order", default=None, help="Ignored")
+@click.option("--limit", "-l", default=10, type=click.IntRange(1, 100), help="Number of results (default: 10)")
+@click.option("--offset", default=None, type=click.IntRange(0), help="Pagination offset")
 @click.option("--format", "-f", "output_format", default="text", type=click.Choice(["text", "json"]),
               help="Output format (default: text)")
 @click.option("--json", "json_output", is_flag=True, help="Shorthand for --format json")
-@click.option("--verbose", "-v", is_flag=True, help="Show quota usage")
-def talent_search(query, token, semantic, tags, career_stage, investigated, sort, order,
+@click.option("--verbose", "-v", is_flag=True, help="Ignored")
+@click.pass_context
+def talent_search(ctx, query, token, semantic, tags, career_stage, investigated, sort, order,
                   limit, offset, output_format, json_output, verbose):
-    """Search scholars by name, affiliation, topic, or tag.
-
-    Without --semantic the query matches names and affiliations; with
-    --semantic it is read as a natural-language description.
-
-    Examples:
-        deepxiv talent search "窦志成"
-        deepxiv talent search "young faculty working on RAG" --semantic --limit 5
-        deepxiv talent search --tags 大语言模型,Agent --career-stage student --sort total_citations
-    """
-    if json_output:
-        output_format = "json"
-
+    """[Deprecated] Alias for `deepxiv fa search talent QUERY`."""
+    _talent_deprecated("search", "search talent")
+    ignored = [flag for flag, value in (("--semantic", semantic), ("--investigated", investigated),
+                                        ("--sort", sort), ("--order", order)) if value]
+    if ignored:
+        click.echo(f"⚠️  Ignored (not supported by the new index): {', '.join(ignored)}", err=True)
+    filters = []
+    if tags:
+        filters.append(f"areas={tags}")
+    if career_stage:
+        filters.append(f"career_stage={career_stage}")
     if not query and not tags:
-        click.echo("❌ Provide a QUERY or --tags to search.", err=True)
+        click.echo("❌ Provide a QUERY to search.", err=True)
         sys.exit(1)
-
-    token = ensure_token(token)
-    if not token:
-        return
-
-    reader = Reader(token=token)
-    result = run_reader_call(
-        lambda: reader.talent_search(
-            query=query,
-            semantic=semantic,
-            tags=tags,
-            career_stage=career_stage,
-            investigated=investigated,
-            sort=sort,
-            order=order,
-            limit=limit,
-            offset=offset,
-        ),
-        "talent search",
-    )
-
-    if output_format == "json":
-        click.echo(json.dumps(result, indent=2, ensure_ascii=False))
-        return
-
-    persons = result.get("persons") or []
-    total = result.get("total", 0)
-
-    if not persons:
-        click.echo("ℹ️  No scholars matched. Try --semantic, or loosen --tags/--career-stage.")
-        _print_ask_quota(result.get("quota"), verbose)
-        return
-
-    mode = "semantic" if result.get("semantic") else "keyword"
-    click.echo(f"\n👥 {len(persons)} of {total} scholar(s) ({mode} search, sorted by {sort} {order})")
-    click.echo("-" * 80)
-
-    for i, person in enumerate(persons, start=offset + 1):
-        _print_talent_person(person, index=i)
-
-    click.echo("\n" + "-" * 80)
-    click.echo("💡 Full profile: deepxiv talent survey <ID>")
-    _print_ask_quota(result.get("quota"), verbose)
+    ctx.invoke(fa_search, domain="talent", query=query or tags.replace(",", " "),
+               filters=tuple(filters), top_k=limit, offset=offset, mode=None, head=False,
+               token=token, json_output=json_output or output_format == "json")
 
 
 @talent.command(name="survey")
-@click.argument("person_id", type=int)
+@click.argument("person_id")
 @click.option("--token", "-t", default=None, envvar="DEEPXIV_TOKEN", help="API token (or set DEEPXIV_TOKEN env var)")
-@click.option("--refresh/--no-refresh", "refresh", default=None,
-              help="Force (or skip) a Google Scholar refresh. Default: refresh only if stale (>14 days).")
+@click.option("--refresh/--no-refresh", "refresh", default=None, help="Ignored")
 @click.option("--format", "-f", "output_format", default="text",
               type=click.Choice(["text", "json", "markdown"]),
-              help="Output format: text summary, raw json, or the full markdown report (default: text)")
+              help="text/json: the profile (level=detail); markdown: the full profile (level=full)")
 @click.option("--json", "json_output", is_flag=True, help="Shorthand for --format json")
-@click.option("--verbose", "-v", is_flag=True, help="Show quota usage")
-def talent_survey(person_id, token, refresh, output_format, json_output, verbose):
-    """Get the full profile of one scholar by ID.
-
-    IDs come from `deepxiv talent search`. Profiles older than ~14 days are
-    refreshed from Google Scholar automatically; use --no-refresh for a
-    read-only lookup.
-
-    Examples:
-        deepxiv talent survey 257
-        deepxiv talent survey 257 --format markdown
-        deepxiv talent survey 3823 --no-refresh --json
-    """
-    if json_output:
-        output_format = "json"
-
-    token = ensure_token(token)
-    if not token:
-        return
-
-    reader = Reader(token=token)
-    try:
-        result = reader.talent_survey(person_id, refresh=refresh)
-    except NotFoundError:
-        click.echo(f"\n❌ No scholar with ID {person_id}. "
-                   "Find IDs with: deepxiv talent search <query>\n", err=True)
-        sys.exit(1)
-    except APIError as e:
-        exit_on_reader_error(e, "talent survey")
-
-    if output_format == "json":
-        click.echo(json.dumps(result, indent=2, ensure_ascii=False))
-        return
-
-    person = result.get("person") or {}
-    if not person:
-        click.echo(f"ℹ️  No scholar with ID {person_id}.")
-        return
-
-    profile = person.get("profile") or {}
-
-    if output_format == "markdown":
-        report = person.get("report_md") or profile.get("bio_md")
-        if not report:
-            click.echo("ℹ️  No markdown report generated for this scholar yet. Try --format text.")
-            return
-        click.echo(report)
-        _print_ask_quota(result.get("quota"), verbose)
-        return
-
-    _print_talent_person(person)
-
-    status = profile.get("status")
-    if status:
-        click.echo(f"  🎓 {status}")
-
-    links = profile.get("links") or {}
-    link_items = [(label, links.get(key)) for label, key in
-                  (("email", "email"), ("homepage", "homepage"), ("github", "github"))]
-    link_items = [(label, value) for label, value in link_items if value]
-    if link_items:
-        click.echo("  🔗 " + " | ".join(f"{label}: {value}" for label, value in link_items))
-
-    bio = profile.get("bio_md")
-    if bio:
-        click.echo(f"\n📝 Bio\n{bio.strip()}")
-
-    education = profile.get("education") or []
-    if education:
-        click.echo("\n🎓 Education")
-        for item in education:
-            span = f"{item.get('start', '?')}–{item.get('end', '?')}"
-            click.echo(f"  · {span}  {item.get('school', 'N/A')} {item.get('degree') or ''}".rstrip())
-
-    work = profile.get("work") or []
-    if work:
-        click.echo("\n💼 Work")
-        for item in work:
-            span = f"{item.get('start', '?')}–{item.get('end', '?')}"
-            click.echo(f"  · {span}  {item.get('org', 'N/A')} {item.get('title') or ''}".rstrip())
-
-    open_source = profile.get("open_source") or []
-    if open_source:
-        click.echo("\n⭐ Open source")
-        for item in open_source[:5]:
-            stars = item.get("stars")
-            click.echo(f"  · {item.get('url', 'N/A')}" + (f" ({stars}★)" if stars else ""))
-
-    scholar = result.get("scholar") or {}
-    if scholar:
-        age = scholar.get("age_days")
-        state = "refreshed" if scholar.get("refreshed") else (scholar.get("refresh_skipped") or "cached")
-        click.echo(f"\n🕒 Scholar data: {state}" + (f", {age} day(s) old" if age is not None else ""))
-        if scholar.get("refresh_error"):
-            click.echo(f"  ⚠️  refresh error: {scholar['refresh_error']}", err=True)
-
-    if person.get("report_md"):
-        click.echo("\n💡 Full report: deepxiv talent survey %s --format markdown" % person_id)
-
-    _print_ask_quota(result.get("quota"), verbose)
+@click.option("--verbose", "-v", is_flag=True, help="Ignored")
+@click.pass_context
+def talent_survey(ctx, person_id, token, refresh, output_format, json_output, verbose):
+    """[Deprecated] Alias for `deepxiv fa read talent ID`."""
+    _talent_deprecated("survey", "read talent")
+    if refresh is not None:
+        click.echo("⚠️  --refresh/--no-refresh is ignored; use `deepxiv fa read talent ID --extra scholar_live` "
+                   "for live Scholar numbers.", err=True)
+    level = "full" if output_format == "markdown" else None
+    ctx.invoke(fa_read, domain="talent", ids=(person_id,), level=level, extra=None, view=None,
+               output_format=None, params=(), token=token,
+               json_output=json_output or output_format == "json")
 
 
 @main.command()
