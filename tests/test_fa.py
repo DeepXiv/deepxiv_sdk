@@ -338,6 +338,20 @@ class TestFaCli:
         assert r.stdout == "partial\n"
         assert "upstream_error: model failed (quota refunded)" in r.stderr
 
+    def test_ask_params_are_typed_into_the_body(self, fake):
+        s = fake(FakeResponse(body={"answer": "ok", "sources": {"laws": [], "cases": []}}))
+        r = run("ask", "q", "-d", "law", "--no-stream", "-p", "scope=law", "-p", "top_k=5",
+                "-p", 'filters={"stance": "positive"}')
+        assert r.exit_code == 0, r.output
+        assert s.calls[0]["json"] == {"query": "q", "scope": "law", "top_k": 5,
+                                      "filters": {"stance": "positive"}}
+        assert "Sources" not in r.stderr
+
+    def test_ask_sources_use_name_field(self, fake):
+        fake(FakeResponse(body={"answer": "a", "sources": {"people": [{"id": "3426", "name": "Yann LeCun"}]}}))
+        r = run("ask", "q", "-d", "talent", "--no-stream")
+        assert "[3426] Yann LeCun" in r.stderr
+
     def test_ask_no_stream(self, fake):
         s = fake(FakeResponse(body={"answer": "done.", "sources": [], "meta": {}}))
         r = run("ask", "q", "-d", "law", "--no-stream")

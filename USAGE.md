@@ -333,7 +333,7 @@ reader.biomed_search(...) / reader.biomed_data(...) # bioRxiv / medRxiv
 
 ### 1stAuthor domains (`FAClient`)
 
-`FAClient` (or `reader.fa()`) covers `deepxiv fa` from Python. See [FA.md § Python](FA.md#python).
+`FAClient` (or `reader.fa()`) covers `deepxiv fa` from Python. See [FA.md § Python](FA.md#10-python-api).
 
 <details>
 <summary><b><code>reader.search()</code> parameters</b></summary>
@@ -718,7 +718,7 @@ results = reader.search("agent")  # Outputs logs
 - **`ask` missed the point?** Rephrase more specifically rather than raising `--effort` — effort adds reading rounds but can't redirect first-round recall.
 - **`ask` listed papers unrelated to the answer?** That's the retrieval set, not the citation list. `--all-sources` shows it in full.
 - **A search returns 0 results?** Loosen filters — stacked date and citation constraints over-narrow quickly.
-- **`deepxiv fa` problems?** See [FA.md § Troubleshooting](FA.md#troubleshooting).
+- **`deepxiv fa` problems?** See [FA.md § Troubleshooting](FA.md#13-troubleshooting).
 - **Agent errors with `Reasoning content is only supported as the last assistant message`?** Reasoning models need thinking off for multi-round tool use: `deepxiv agent query "…" --disable-thinking`, or `Agent(..., enable_thinking=False)`.
 - **`agent.add_paper()` on a brand-new paper?** Returns `False` when the paper isn't indexed yet — papers under 1–3 days old often aren't.
 

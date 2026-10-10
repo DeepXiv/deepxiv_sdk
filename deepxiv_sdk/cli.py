@@ -3,6 +3,7 @@ Command-line interface for deepxiv.
 """
 import json
 import os
+import re
 import sys
 import click
 import requests
@@ -1120,10 +1121,12 @@ ASK (agentic search → cited answer; needs a REGISTERED key, separate quota):
   deepxiv fa ask "question"         Cited answer (registered key, agentic quota)
     --domain, -d DOMAIN             Pick the domain (default: auto-routed)
     --effort, -e LEVEL              low / medium / high
+    --param, -p k=v                 Domain ask parameter (see spec), repeatable
   deepxiv fa whoami                 Token source and today's quota
 
   search/read/facets/resolve spend the general daily limit at 1stAuthor's
   prices. `deepxiv talent search|survey` are deprecated aliases.
+  Full guide: FA.md (https://github.com/DeepXiv/deepxiv_sdk/blob/main/FA.md)
 
 SEARCH:
   deepxiv search "query"            Search for papers (arXiv by default)
@@ -1652,7 +1655,7 @@ def _fa_text(value):
 
 
 # Brief fields differ per domain; these are tried in order.
-_FA_TITLE_KEYS = ("name_line", "title", "law_title", "brief_title", "spl_name", "company_name",
+_FA_TITLE_KEYS = ("name_line", "name", "title", "law_title", "brief_title", "spl_name", "company_name",
                   "resolved_title", "citation", "cause", "affected")
 _FA_SUMMARY_KEYS = ("one_liner_zh", "summary_zh", "one_liner", "summary", "role")
 _FA_STAT_KEYS = (("h_index", "h-index"), ("citations_all", "citations"), ("severity", "severity"),
@@ -1753,6 +1756,10 @@ def fa_spec(domain, token, json_output):
     if isinstance(ask_def, dict):
         credits = ask_def.get("credits") or {}
         click.echo("\nASK  --effort " + ", ".join(credits) + "  (agentic quota, registered key)")
+        for name, pdef in (ask_def.get("extra_params") or {}).items():
+            values = "/".join(str(v) for v in pdef.get("values") or []) or pdef.get("type", "")
+            desc = pdef.get("desc_en") or pdef.get("desc") or ""
+            click.echo(f"  -p {name:<16} {values:<20} {desc[:90]}")
     elif ask_def is False:
         click.echo("\nASK  not available for this domain")
 
@@ -1825,6 +1832,18 @@ def _parse_params(pairs):
             click.echo(f"❌ --param expects key=value, got {pair!r}", err=True)
             sys.exit(2)
         params[key] = value
+    return params
+
+
+def _parse_ask_params(pairs):
+    """--param values for ask go in the JSON body, so give them JSON types."""
+    params = _parse_params(pairs)
+    for key, value in params.items():
+        if value[:1] in ("{", "[") or value in ("true", "false", "null") or re.fullmatch(r"-?\d+(\.\d+)?", value):
+            try:
+                params[key] = json.loads(value)
+            except ValueError:
+                pass
     return params
 
 
@@ -1935,7 +1954,7 @@ def _print_fa_sources(sources):
     """Sources of an ask answer, on stderr."""
     groups = []
     if isinstance(sources, dict):
-        groups = [(k, v) for k, v in sources.items() if isinstance(v, list)]
+        groups = [(k, v) for k, v in sources.items() if isinstance(v, list) and v]
     elif isinstance(sources, list):
         groups = [("sources", sources)]
     total = sum(len(v) for _, v in groups)
@@ -1963,10 +1982,12 @@ def _print_fa_sources(sources):
               help="Agent depth (default: the domain's default)")
 @click.option("--no-stream", is_flag=True, help="Wait for the full answer instead of streaming it")
 @click.option("--no-sources", is_flag=True, help="Skip the sources list")
+@click.option("--param", "-p", "params", multiple=True,
+              help="Domain-specific ask parameter key=value, repeatable (see `deepxiv fa spec DOMAIN`)")
 @click.option("--verbose", "-v", is_flag=True, help="Show progress, tool calls and quota on stderr")
 @_FA_TOKEN_OPTION
 @_FA_JSON_OPTION
-def fa_ask(query, domain, effort, no_stream, no_sources, verbose, token, json_output):
+def fa_ask(query, domain, effort, no_stream, no_sources, params, verbose, token, json_output):
     """Ask a question over a 1stAuthor domain and get a cited answer.
 
     Needs a registered account key (https://data.rag.ac.cn/register) and
@@ -1978,13 +1999,14 @@ def fa_ask(query, domain, effort, no_stream, no_sources, verbose, token, json_ou
     \b
     Examples:
         deepxiv fa ask "who are the leading researchers on self-supervised learning" --domain talent
-        deepxiv fa ask "个人信息出境需要满足什么条件" --domain law --effort high
+        deepxiv fa ask "个人信息出境需要满足什么条件" --domain law --effort high -p scope=law
         deepxiv fa ask "who works on speculative decoding in Beijing"
     """
+    extra = _parse_ask_params(params)
     client = _fa_client(token)
 
     if json_output or no_stream:
-        result = _run_fa_call(lambda: client.ask(query, domain, effort=effort))
+        result = _run_fa_call(lambda: client.ask(query, domain, effort=effort, **extra))
         if json_output:
             click.echo(json.dumps(result, indent=2, ensure_ascii=False))
         else:
@@ -2000,7 +2022,7 @@ def fa_ask(query, domain, effort, no_stream, no_sources, verbose, token, json_ou
     saw_answer = False
     failed = None
     try:
-        for event in client.ask_stream(query, domain, effort=effort):
+        for event in client.ask_stream(query, domain, effort=effort, **extra):
             name = event.get("event")
             if name == "answer_delta":
                 text = event.get("delta") or event.get("text") or ""

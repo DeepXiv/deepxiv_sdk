@@ -331,7 +331,7 @@ reader.biomed_search(...) / reader.biomed_data(...) # bioRxiv / medRxiv
 
 ### 1stAuthor 垂域（`FAClient`）
 
-`FAClient`（或 `reader.fa()`）是 `deepxiv fa` 的 Python 接口，见 [FA.zh.md § Python](FA.zh.md#python)。
+`FAClient`（或 `reader.fa()`）是 `deepxiv fa` 的 Python 接口，见 [FA.zh.md § Python](FA.zh.md#10-python-接口)。
 
 <details>
 <summary><b><code>reader.search()</code> 参数</b></summary>
@@ -711,7 +711,7 @@ results = reader.search("agent")  # 会输出日志
 - **`ask` 答非所问？** 换个更具体的说法，而不是提高 `--effort` —— effort 只增加阅读轮数，改变不了第一轮的召回方向。
 - **`ask` 列出了和答案无关的论文？** 那是召回集不是引用列表，`--all-sources` 会完整显示。
 - **检索返回 0 条？** 松开过滤条件 —— 日期和引用数叠加会很快过窄。
-- **`deepxiv fa` 的问题？** 见 [FA.zh.md § 常见问题](FA.zh.md#常见问题)。
+- **`deepxiv fa` 的问题？** 见 [FA.zh.md § 常见问题](FA.zh.md#13-常见问题)。
 - **Agent 报 `Reasoning content is only supported as the last assistant message`？** 推理模型做多轮工具调用需要关掉 thinking：`deepxiv agent query "…" --disable-thinking`，或 `Agent(..., enable_thinking=False)`。
 - **`agent.add_paper()` 加不进新论文？** 论文还没入库时返回 `False` —— 1–3 天内的论文经常还没有。
 
