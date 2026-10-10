@@ -56,16 +56,18 @@ token 有两种：
 |---|---|---|---|
 | `talent` | 约 19 万 AI 研究者，约 16 万份调查档案（教育、履历、代表作、开源），Google Scholar 指标实时渲染 | `person_id` | ✅ |
 | `law` | 26 个法域约 3.3 万部法规 / 150 万条，按条检索，附中译和逐条抽取 | `law_id` | ✅ |
-| `us_law` | 美国 53 个法域约 500 万条条款级文本：成文法、联邦法规（CFR）、会期法、机构裁决、指引、法院规则 | `law_id` | |
-| `cases` | 裁判文书：中国约 1,750 万篇 + 美国判例约 344 万篇，附抽取的结构化字段 | `uuid` | |
-| `trials` | ClinicalTrials.gov 全量临床研究（约 60 万项），抽取了入排标准、生物标志物、既往治疗和摘要 | `nct_id` | |
-| `drugs` | 约 25.6 万份美国药品说明书（openFDA SPL）：适应症、禁忌、相互作用、黑框警告 | `set_id` | |
-| `grants` | 约 120 万项 NSF 资助与 NIH 项目 | `grant_id` | |
-| `filings` | 约 120 万份美股 + A 股公告与监管文书（8-K、10-K/20-F、定期报告、处罚） | `doc_id` | |
-| `standards` | 约 7.9 万条中国国家标准（GB / GB/T / GB/Z），只有目录元数据，没有正文 | `std_code` | |
-| `cve` | 约 38.4 万条公开漏洞（NVD），含 CISA KEV 与 EPSS | `doc_id` | |
-| `fr` | 1994 年以来约 100 万篇美国联邦公报 | `doc_id` | |
+| `us_law` | 美国 53 个法域约 500 万条条款级文本：成文法、联邦法规（CFR）、会期法、机构裁决、指引、法院规则 | `law_id` | ✅ |
+| `cases` | 裁判文书：中国约 1,750 万篇 + 美国判例约 344 万篇，附抽取的结构化字段 | `uuid` | ✅（用 law 的 agent） |
+| `trials` | ClinicalTrials.gov 全量临床研究（约 60 万项），抽取了入排标准、生物标志物、既往治疗和摘要 | `nct_id` | ✅ |
+| `drugs` | 约 25.6 万份美国药品说明书（openFDA SPL）：适应症、禁忌、相互作用、黑框警告 | `set_id` | ✅ |
+| `grants` | 约 120 万项 NSF 资助与 NIH 项目 | `grant_id` | ✅ |
+| `filings` | 约 120 万份美股 + A 股公告与监管文书（8-K、10-K/20-F、定期报告、处罚） | `doc_id` | ✅ |
+| `standards` | 约 7.9 万条中国国家标准（GB / GB/T / GB/Z），只有目录元数据，没有正文 | `std_code` | ✅ |
+| `cve` | 约 38.4 万条公开漏洞（NVD），含 CISA KEV 与 EPSS | `doc_id` | ✅ |
+| `fr` | 1994 年以来约 100 万篇美国联邦公报 | `doc_id` | ✅ |
 | `appraise` | 一篇论文被哪些院士 / 会士引用过、他们原话怎么说 | `target_key` | ✅ |
+
+所有域都支持 `fa ask`。law、talent、appraise 有各自专门的 agent；其余域共用一个通用 agent，它把问题翻成该域的过滤条件加关键词，所以只有数据库的域（cve、fr）也能问答。`cases` 用 law 的 agent。`standards` 只有目录元数据，它的 ask 会先说明答不了条文正文。
 
 以上为实时列表的快照：`deepxiv fa domains` 显示当前的域和规模，`deepxiv fa spec <域>` 描述某个域。论文和网页不在这里，它们走 deepxiv 原生命令（`deepxiv search`、`paper`、`ask`）。
 
@@ -224,7 +226,7 @@ deepxiv fa ask QUESTION [-d DOMAIN] [-e EFFORT] [-p k=v]... [--no-stream] [--no-
 
 | 选项 | |
 |---|---|
-| `-d`, `--domain` | 指定域；不指定时由 1stAuthor 选域，stderr 会打出 `🧭 routed to …` |
+| `-d`, `--domain` | 指定域；不指定时由 1stAuthor 在你的 key 可用的域里选一个，stderr 会打出 `🧭 routed to …`；把握不大时会提示你用 `-d` 指定 |
 | `-e`, `--effort` | `low` / `medium` / `high`；不指定则用域的默认值。越高读得越多、越贵 |
 | `-p`, `--param k=v` | 域专属的 ask 参数，可重复。值按 JSON 类型发送：`5` → 数字，`true` → 布尔，`{…}` / `[…]` → 对象或数组 |
 | `--no-stream` | 等完整答案，不流式输出 |
@@ -238,13 +240,14 @@ deepxiv fa ask QUESTION [-d DOMAIN] [-e EFFORT] [-p k=v]... [--no-stream] [--no-
 |---|---|---|
 | `talent` | `top_k` | 每次库内检索取多少候选（默认 20） |
 | `law` | `scope` | `auto` / `law`（法条）/ `case`（判决）/ `both` |
+| `cases` | `scope` | 与 law 同一个 agent，默认 `case`（只查判决） |
 | `law` | `jurisdiction` | ISO3 代码（默认由模型判断） |
 | `appraise` | `paper` | 直接指定论文（arXiv ID / DOI / 标题），跳过识别 |
 | `appraise` | `filters` | 限定使用哪些引用，格式同检索的过滤条件 |
 
 输出：
 
-- 答案边生成边流式打到 stdout，引用形如 `[talent:15023 Geoffrey Hinton]` 或 `[中华人民共和国个人信息保护法 第三十八条]`。
+- 在终端里，答案边生成边流式打到 stdout；stdout 被重定向或接管道时，CLI 等答案结束后一次性写出，文件里只有最终答案（见下面的 `answer_reset`）。引用形如 `[talent:15023 Geoffrey Hinton]` 或 `[中华人民共和国个人信息保护法 第三十八条]`。
 - 答案结束后，来源按类别分组（如 `laws`、`cases`、`people`）打到 stderr。
 - 如果 agent 在流开始后失败，CLI 会打出 `❌ code: message`，配额已退还时附上 `(quota refunded)`，并以 1 退出。
 
@@ -253,6 +256,8 @@ deepxiv fa ask "自监督学习领域最有影响力的研究者有哪些" --dom
 deepxiv fa ask "多伦多大学有哪些做深度学习的研究者"                         # 自动选域
 deepxiv fa ask "中国个人信息保护法对个人信息出境有什么要求" -d law -p scope=law -e high
 deepxiv fa ask "院士们怎么评价这篇论文" -d appraise -p paper=1706.03762
+deepxiv fa ask "2024 年被 CISA 列入在野利用、CVSS 9 分以上的 RCE 有哪些" -d cve -e low
+deepxiv fa ask "有哪些正在招募的胰腺癌三期临床试验" -d trials
 deepxiv fa ask "Who is Yann LeCun?" -d talent --json > answer.json
 ```
 
@@ -329,7 +334,7 @@ deepxiv fa search talent "Geoffrey Hinton" --json | jq '.hits[0].id'
 | `read` | 通用 daily limit | 按级别 / extra / format 计，全部价格见 `spec`（talent：brief 1、detail 3、full 10，extra 1–20） |
 | `facets` | 通用 daily limit | 1 |
 | `resolve` | 通用 daily limit | 2 |
-| `ask` | agentic 配额（与 `deepxiv ask` 共用） | 每次 1 次；**仅限注册 key** |
+| `ask` | agentic 配额（与 `deepxiv ask` 共用） | 每次 1 次，与域和 effort 无关；**仅限注册 key** |
 
 - 通用 daily limit：自动注册的 token 为 1,000，注册 key 为 10,000。注册 key 另有每天 300 次免费 agentic 调用。见 [USAGE.zh.md § Token 与额度](USAGE.zh.md#token-与额度)。
 - 每次付费调用后，CLI 会在 stderr 打出 `💳 cost N · 剩余/上限`，剩余不足 20 时会提醒。
@@ -420,6 +425,8 @@ for event in fa.ask_stream("多伦多大学有哪些做深度学习的研究者"
         print("routed to", event["domain"])
     elif kind == "answer_delta":
         print(event["delta"], end="", flush=True)
+    elif kind == "answer_reset":               # 替换此前已显示的内容
+        print("\n" + event["answer"], end="", flush=True)
     elif kind == "sources":
         sources = event["sources"]
     elif kind == "error":                       # HTTP 仍是 200，必须检查
@@ -428,11 +435,12 @@ for event in fa.ask_stream("多伦多大学有哪些做深度学习的研究者"
 
 | 事件 | 何时出现 | 字段 |
 |---|---|---|
-| `route` | 仅在不指定域时出现，最先到达 | `domain` |
+| `route` | 仅在不指定域时出现，最先到达 | `domain`、`method`、`confident` |
 | `start` | 开始运行 | `domain`、`effort`、`max_rounds` |
 | `tool_call` / `tool_result` / `warning` | agent 工作过程中（并非每个域都发） | 工具名、参数、摘要 |
 | `answer_start` | 第一个 token 之前 | — |
-| `answer_delta` | 多次 | `delta` |
+| `answer_delta` | 多次，随模型生成实时到达 | `delta` |
+| `answer_reset` | 少见：模型在调工具前先写了一句过程说明（"我先查一下…"） | `answer`、`reason`：丢弃此前已显示的内容，改用 `answer` |
 | `sources` | 答案之后 | `sources`（按类别分组）、`citation_format` |
 | `done` | 结束 | `stats`（`rounds`、`tool_calls`、`elapsed_s`、`answer_truncated` 等） |
 | `error` | 失败时，取代后续事件 | `code`、`message`、`refunded` |
@@ -516,5 +524,5 @@ curl -H "$AUTH" $BASE/v1/whoami
 - **某人 `--level full` 返回 404？** 他的卡片上 `has_profile: false`，只有卡片级数据。
 - **`--format html` 还是打印 JSON？** 该域没有 HTML 渲染，`spec --json` → `read.formats` 列出了实际支持的格式。
 - **`standards` 没有正文？** 这个域只有目录元数据。
-- **`fa ask` 不带 `--domain` 时报了奇怪的错？** 路由可能选到了服务不允许的域，请显式加 `--domain`。
+- **`fa ask` 不带 `--domain` 时答错了域？** 路由只在你的 key 可用的域里选，没有合适的域时会提示 `low confidence`。请用 `--domain` 指定。
 - **其它问题？** 欢迎[提 issue](https://github.com/DeepXiv/deepxiv_sdk/issues)。deepxiv 和 1stAuthor 的垂域都还在 beta。

@@ -1950,6 +1950,15 @@ def fa_resolve(names, token, json_output):
     _print_fa_quota(result, client)
 
 
+def _print_fa_route(route):
+    """Where 1stAuthor routed an ask without --domain; flag low-confidence picks."""
+    if not isinstance(route, dict) or not route.get("domain"):
+        return
+    click.echo(f"🧭 routed to {route['domain']}", err=True)
+    if route.get("confident") is False:
+        click.echo("   (low confidence — pass --domain/-d to pick the domain yourself)", err=True)
+
+
 def _print_fa_sources(sources):
     """Sources of an ask answer, on stderr."""
     groups = []
@@ -1969,7 +1978,9 @@ def _print_fa_sources(sources):
                 click.echo(f"  {i}. {s}", err=True)
                 continue
             ident = s.get("id") or s.get("person_id") or s.get("law_key") or s.get("url") or "?"
-            click.echo(f"  {i}. [{ident}] {_fa_hit_title(s)}", err=True)
+            title = _fa_hit_title(s) or next(
+                (_fa_text(s.get(k)) for k in _FA_SUMMARY_KEYS if _fa_text(s.get(k))), "")
+            click.echo(f"  {i}. [{ident}] {title[:150]}", err=True)
             if s.get("url") and s.get("url") != ident:
                 click.echo(f"     {s['url']}", err=True)
 
@@ -2010,35 +2021,59 @@ def fa_ask(query, domain, effort, no_stream, no_sources, params, verbose, token,
         if json_output:
             click.echo(json.dumps(result, indent=2, ensure_ascii=False))
         else:
-            route = result.get("route")
-            if isinstance(route, dict) and route.get("domain"):
-                click.echo(f"🧭 routed to {route['domain']}", err=True)
+            _print_fa_route(result.get("route"))
             click.echo(result.get("answer", ""))
             if not no_sources:
                 _print_fa_sources(result.get("sources"))
         _print_ask_quota(client.last_quota.get("agent"), verbose)
         return
 
-    saw_answer = False
+    # On a terminal the answer streams as it arrives. When stdout is redirected it is
+    # buffered and written once, so an `answer_reset` (the agent narrated before
+    # calling a tool) can replace it and the file gets only the final answer.
+    live = sys.stdout.isatty()
+    answer = []
+    shown = 0          # characters of `answer` already written to stdout
     failed = None
+
+    def flush_answer():
+        nonlocal shown
+        text = "".join(answer)
+        if len(text) > shown:
+            click.echo(text[shown:], nl=False)
+            shown = len(text)
+
+    def end_answer():
+        nonlocal answer, shown
+        flush_answer()
+        if shown:
+            click.echo()
+        answer, shown = [], 0
+
     try:
         for event in client.ask_stream(query, domain, effort=effort, **extra):
             name = event.get("event")
             if name == "answer_delta":
                 text = event.get("delta") or event.get("text") or ""
                 if text:
-                    saw_answer = True
-                    click.echo(text, nl=False)
+                    answer.append(text)
+                    if live:
+                        flush_answer()
             elif name == "answer":
-                if not saw_answer and event.get("answer"):
-                    saw_answer = True
-                    click.echo(event["answer"], nl=False)
-            elif name == "route":
-                click.echo(f"🧭 routed to {event.get('domain')}", err=True)
-            elif name == "sources":
-                if saw_answer:
+                if not answer and event.get("answer"):
+                    answer.append(event["answer"])
+            elif name == "answer_reset":
+                if live and shown:
                     click.echo()
-                    saw_answer = False
+                    click.echo("↺ answer restarted" + (f" ({event['reason']})" if event.get("reason") else ""),
+                               err=True)
+                answer, shown = [event.get("answer") or ""], 0
+                if live:
+                    flush_answer()
+            elif name == "route":
+                _print_fa_route(event)
+            elif name == "sources":
+                end_answer()
                 if not no_sources:
                     sources = event.get("sources")
                     if sources is None:
@@ -2048,8 +2083,9 @@ def fa_ask(query, domain, effort, no_stream, no_sources, params, verbose, token,
                 failed = event
                 break
             elif name == "done" and verbose:
+                end_answer()
                 stats = event.get("stats") or event
-                bits = [f"{k}={stats[k]}" for k in ("elapsed_ms", "rounds", "tool_calls") if stats.get(k) is not None]
+                bits = [f"{k}={stats[k]}" for k in ("elapsed_s", "elapsed_ms", "rounds", "tool_calls") if stats.get(k) is not None]
                 if bits:
                     click.echo(f"✅ done {' '.join(bits)}", err=True)
             elif name == "start" and verbose:
@@ -2060,12 +2096,10 @@ def fa_ask(query, domain, effort, no_stream, no_sources, params, verbose, token,
             elif name == "warning" and verbose:
                 click.echo(f"⚠️  {event.get('message', '')}", err=True)
     except FAError as e:
-        if saw_answer:
-            click.echo()
+        end_answer()
         _exit_on_fa_error(e)
 
-    if saw_answer:
-        click.echo()
+    end_answer()
     if failed is not None:
         refunded = " (quota refunded)" if failed.get("refunded") else ""
         click.echo(f"\n❌ {failed.get('code', 'error')}: {failed.get('message', 'unknown error')}{refunded}\n", err=True)

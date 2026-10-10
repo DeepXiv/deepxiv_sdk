@@ -352,6 +352,29 @@ class TestFaCli:
         r = run("ask", "q", "-d", "talent", "--no-stream")
         assert "[3426] Yann LeCun" in r.stderr
 
+    def test_ask_answer_reset_replaces_narration_when_redirected(self, fake):
+        fake(FakeResponse(lines=ndjson(
+            {"event": "start"},
+            {"event": "answer_delta", "delta": "Let me look this up first. "},
+            {"event": "answer_reset", "answer": "Final", "reason": "narration"},
+            {"event": "answer_delta", "delta": " answer."},
+            {"event": "sources", "sources": {"cve": [{"id": "CVE-2024-3400", "one_liner": "PAN-OS RCE"}]}},
+            {"event": "done"},
+        )))
+        r = run("ask", "q", "-d", "cve")
+        assert r.exit_code == 0, r.output
+        assert r.stdout == "Final answer.\n"
+        assert "[CVE-2024-3400] PAN-OS RCE" in r.stderr
+
+    def test_ask_low_confidence_route_hint(self, fake):
+        fake(FakeResponse(lines=ndjson(
+            {"event": "route", "domain": "cve", "confident": False},
+            {"event": "answer_delta", "delta": "nothing"},
+            {"event": "done"},
+        )))
+        r = run("ask", "what's the weather")
+        assert "routed to cve" in r.stderr and "low confidence" in r.stderr
+
     def test_ask_no_stream(self, fake):
         s = fake(FakeResponse(body={"answer": "done.", "sources": [], "meta": {}}))
         r = run("ask", "q", "-d", "law", "--no-stream")

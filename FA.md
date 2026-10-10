@@ -56,16 +56,18 @@ There are two kinds of token:
 |---|---|---|---|
 | `talent` | ~190k AI researchers; ~160k researched profiles (education, career, representative papers, open source), with live Google Scholar metrics | `person_id` | ✅ |
 | `law` | ~33k statutes / 1.5M articles from 26 jurisdictions, searched article by article, with Chinese translations and per-article extraction | `law_id` | ✅ |
-| `us_law` | ~5M clause-level US provisions across 53 jurisdictions: statutes, regulations (CFR), session laws, agency decisions, guidance, court rules | `law_id` | |
-| `cases` | Court judgments: ~17.5M from China and ~3.4M US opinions, with extracted structured fields | `uuid` | |
-| `trials` | Every study on ClinicalTrials.gov (~600k), with extracted eligibility, biomarkers, prior therapy and summaries | `nct_id` | |
-| `drugs` | ~256k US drug labels (openFDA SPL): indications, contraindications, interactions, boxed warnings | `set_id` | |
-| `grants` | ~1.2M NSF awards and NIH projects | `grant_id` | |
-| `filings` | ~1.2M US and Chinese corporate filings and regulatory documents (8-K, 10-K/20-F, periodic reports, enforcement) | `doc_id` | |
-| `standards` | ~79k Chinese national standards (GB / GB/T / GB/Z): catalogue metadata only, no full text | `std_code` | |
-| `cve` | ~384k public vulnerabilities (NVD), with CISA KEV and EPSS | `doc_id` | |
-| `fr` | ~1M Federal Register documents since 1994 | `doc_id` | |
+| `us_law` | ~5M clause-level US provisions across 53 jurisdictions: statutes, regulations (CFR), session laws, agency decisions, guidance, court rules | `law_id` | ✅ |
+| `cases` | Court judgments: ~17.5M from China and ~3.4M US opinions, with extracted structured fields | `uuid` | ✅ (law's agent) |
+| `trials` | Every study on ClinicalTrials.gov (~600k), with extracted eligibility, biomarkers, prior therapy and summaries | `nct_id` | ✅ |
+| `drugs` | ~256k US drug labels (openFDA SPL): indications, contraindications, interactions, boxed warnings | `set_id` | ✅ |
+| `grants` | ~1.2M NSF awards and NIH projects | `grant_id` | ✅ |
+| `filings` | ~1.2M US and Chinese corporate filings and regulatory documents (8-K, 10-K/20-F, periodic reports, enforcement) | `doc_id` | ✅ |
+| `standards` | ~79k Chinese national standards (GB / GB/T / GB/Z): catalogue metadata only, no full text | `std_code` | ✅ |
+| `cve` | ~384k public vulnerabilities (NVD), with CISA KEV and EPSS | `doc_id` | ✅ |
+| `fr` | ~1M Federal Register documents since 1994 | `doc_id` | ✅ |
 | `appraise` | Which academicians and society fellows cited a paper, and what they said about it | `target_key` | ✅ |
+
+Every domain supports `fa ask`. law, talent and appraise have their own agents. The others share one agent that turns the question into the domain's filters plus keywords, so it works even for domains backed only by a database (cve, fr). `cases` uses law's agent. `standards` holds catalogue metadata only, so its ask says up front that it can't quote clause text.
 
 The list is live: `deepxiv fa domains` shows the current domains and sizes, and `deepxiv fa spec <domain>` describes one domain. Papers and the web aren't here because deepxiv serves them natively (`deepxiv search`, `paper`, `ask`).
 
@@ -224,7 +226,7 @@ A cited answer. An agent searches and reads the domain for you. **Needs a regist
 
 | Option | |
 |---|---|
-| `-d`, `--domain` | Domain to ask. Without it, 1stAuthor picks the domain and stderr shows `🧭 routed to …` |
+| `-d`, `--domain` | Domain to ask. Without it, 1stAuthor picks one of the domains your key can use and stderr shows `🧭 routed to …`; a low-confidence pick adds a hint to pass `-d` |
 | `-e`, `--effort` | `low` / `medium` / `high`; the domain's default if omitted. Higher effort reads more and costs more |
 | `-p`, `--param k=v` | A domain-specific ask parameter, repeatable. Values are sent as JSON types: `5` → number, `true` → boolean, `{…}` / `[…]` → object or array |
 | `--no-stream` | Wait for the whole answer instead of streaming it |
@@ -238,13 +240,14 @@ Ask parameters by domain (current list: `deepxiv fa spec DOMAIN`):
 |---|---|---|
 | `talent` | `top_k` | Candidates per corpus search (default 20) |
 | `law` | `scope` | `auto` / `law` (statutes) / `case` (judgments) / `both` |
+| `cases` | `scope` | Same agent as law; defaults to `case` (judgments only) |
 | `law` | `jurisdiction` | ISO3 code (default: the model decides) |
 | `appraise` | `paper` | Name the paper (arXiv ID / DOI / title) and skip resolution |
 | `appraise` | `filters` | Which citations to use, in the same format as search filters |
 
 What you get:
 
-- The answer streams to stdout as it's written. Citations look like `[talent:15023 Geoffrey Hinton]` or `[中华人民共和国个人信息保护法 第三十八条]`.
+- On a terminal the answer streams to stdout as it's written. When stdout is redirected or piped, the CLI writes the answer once at the end, so the file holds only the final answer (see `answer_reset` below). Citations look like `[talent:15023 Geoffrey Hinton]` or `[中华人民共和国个人信息保护法 第三十八条]`.
 - When the answer is done, sources go to stderr, grouped by kind (e.g. `laws`, `cases`, `people`).
 - If the agent fails after the stream has started, the CLI prints `❌ code: message`, adding `(quota refunded)` when the quota was refunded, and exits 1.
 
@@ -253,6 +256,8 @@ deepxiv fa ask "who are the leading researchers on self-supervised learning" --d
 deepxiv fa ask "Which researchers at the University of Toronto work on deep learning?"         # auto-routed
 deepxiv fa ask "中国个人信息保护法对个人信息出境有什么要求" -d law -p scope=law -e high
 deepxiv fa ask "how did fellows assess this paper" -d appraise -p paper=1706.03762
+deepxiv fa ask "KEV-listed RCEs from 2024 with CVSS 9+" -d cve -e low
+deepxiv fa ask "recruiting phase 3 trials for pancreatic cancer" -d trials
 deepxiv fa ask "Who is Yann LeCun?" -d talent --json > answer.json
 ```
 
@@ -329,7 +334,7 @@ deepxiv fa search talent "Geoffrey Hinton" --json | jq '.hits[0].id'
 | `read` | general daily limit | by level / extra / format; `spec` lists every price (talent: brief 1, detail 3, full 10, extras 1–20) |
 | `facets` | general daily limit | 1 |
 | `resolve` | general daily limit | 2 |
-| `ask` | agentic quota (shared with `deepxiv ask`) | 1 call; **registered key only** |
+| `ask` | agentic quota (shared with `deepxiv ask`) | 1 call, whatever the domain or effort; **registered key only** |
 
 - The general daily limit is 1,000 for an auto-registered token and 10,000 for a registered key. Registered keys also get 300 agentic calls/day free. See [USAGE.md § Tokens and limits](USAGE.md#tokens-and-limits).
 - After each paid call, the CLI prints `💳 cost N · remaining/limit left today` to stderr, and warns when 20 or fewer remain.
@@ -420,6 +425,8 @@ for event in fa.ask_stream("Which researchers at the University of Toronto work 
         print("routed to", event["domain"])
     elif kind == "answer_delta":
         print(event["delta"], end="", flush=True)
+    elif kind == "answer_reset":               # replace what was shown so far
+        print("\n" + event["answer"], end="", flush=True)
     elif kind == "sources":
         sources = event["sources"]
     elif kind == "error":                       # arrives with HTTP 200, so always check
@@ -428,11 +435,12 @@ for event in fa.ask_stream("Which researchers at the University of Toronto work 
 
 | Event | When | Fields |
 |---|---|---|
-| `route` | only without a domain, first | `domain` |
+| `route` | only without a domain, first | `domain`, `method`, `confident` |
 | `start` | run starts | `domain`, `effort`, `max_rounds` |
 | `tool_call` / `tool_result` / `warning` | while the agent works (not every domain emits them) | tool name, arguments, summary |
 | `answer_start` | before the first token | — |
-| `answer_delta` | repeatedly | `delta` |
+| `answer_delta` | repeatedly, as the model writes | `delta` |
+| `answer_reset` | rarely: the model narrated ("let me check…") before calling a tool | `answer`, `reason`: discard what was shown and use `answer` |
 | `sources` | after the answer | `sources` (grouped by kind), `citation_format` |
 | `done` | end | `stats` (`rounds`, `tool_calls`, `elapsed_s`, `answer_truncated`, …) |
 | `error` | on failure, instead of the rest | `code`, `message`, `refunded` |
@@ -516,5 +524,5 @@ curl -H "$AUTH" $BASE/v1/whoami
 - **`--level full` returns 404 for a person.** Their card has `has_profile: false`, so only card-level data exists.
 - **`--format html` still prints JSON.** That domain has no HTML rendering; `spec --json` → `read.formats` lists what exists.
 - **`standards` hits have no body.** That domain is catalogue metadata only.
-- **`fa ask` without `--domain` gives an odd error.** The router may have picked a domain the service doesn't allow. Pass `--domain` explicitly.
+- **`fa ask` without `--domain` answered from the wrong domain.** The router only picks among domains your key can use, and says `low confidence` when nothing fits well. Pass `--domain`.
 - **Anything else.** [Open an issue](https://github.com/DeepXiv/deepxiv_sdk/issues). Both deepxiv and 1stAuthor's domains are in beta.
