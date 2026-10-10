@@ -38,6 +38,14 @@
 
 DeepXiv 把这个取舍消掉。论文是预先解析好的，agent 可以先花 300 token 看 TLDR，再决定要不要花 5k token 读 Methods。需要证据支撑的问题交给 agentic 接口，它会真的去读原文，返回可核查的引用。而"谁在做"是调研的另一半，所以同一个 token 也能检索学者 —— 还能经 [1stAuthor](https://1stauthor.com) 的垂域查法规、临床试验、药品、基金等。
 
+## DeepXiv × 1stAuthor
+
+DeepXiv 与 [1stAuthor](https://1stauthor.com) 深度合作，提供论文之外的多领域数据服务：学者、法规、裁判文书、临床试验、药品、基金、公告、标准、CVE 等，都可以用同一个 token 通过 `deepxiv fa` 访问。
+
+DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费**。如需更大额度的 1stAuthor 相关服务，可以到 [1stauthor.com](https://1stauthor.com) 看看。
+
+> 1stAuthor 目前处于纯内测阶段，任何问题欢迎[提 issue](https://github.com/DeepXiv/deepxiv_sdk/issues)。
+
 ## 安装
 
 ```bash
