@@ -40,7 +40,7 @@ DeepXiv 把这个取舍消掉。论文是预先解析好的，agent 可以先花
 
 ## DeepXiv × 1stAuthor
 
-DeepXiv 与 [1stAuthor](https://1stauthor.com) 深度合作，提供论文之外的多领域数据服务：学者、法规、裁判文书、临床试验、药品、基金、公告、标准、CVE 等，都可以用同一个 token 通过 `deepxiv fa` 访问。
+DeepXiv 与 [1stAuthor](https://1stauthor.com) 深度合作，提供论文之外的多领域数据服务：学者、法规、裁判文书、临床试验、药品、基金、公告、标准、CVE 等，都可以用同一个 token 通过 `deepxiv fa` 访问。**→ [`deepxiv fa` 使用文档](FA.zh.md)**
 
 DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费**。如需更大额度的 1stAuthor 相关服务，可以到 [1stauthor.com](https://1stauthor.com) 看看。
 
@@ -107,15 +107,16 @@ deepxiv search "speculative decoding" --date-from 2025-01 --min-citations 20 --l
 **4. 找到背后的人。** 知道方法出自谁的组、他们还做过什么，这个方法的价值才完整。
 
 ```bash
-deepxiv fa search talent "投机解码" --top-k 5                # 人名、方向都行
-deepxiv fa search talent "RAG" -F org=清华大学 -F "h_index>=30"
-deepxiv fa read talent 12                                    # 画像：简介、教育、履历、代表作、指标
-deepxiv fa read talent 12 --level full                       # 完整调查档案（markdown）
+deepxiv fa search talent "投机解码" --top-k 5                # 按方向
+deepxiv fa search talent "Geoffrey Hinton"                    # 或按人名
+deepxiv fa search talent "deep learning" -F "org=University of Toronto" -F "h_index>=50"
+deepxiv fa read talent 15023                                  # 画像：简介、教育、履历、代表作、指标
+deepxiv fa read talent 15023 --level full                     # 完整调查档案（markdown）
 ```
 
 中文名、拼音、英文名和研究方向都能直接搜。`search` 给出的 ID 喂给 `read`；`deepxiv fa spec talent` 列出可用过滤条件和各读取级别的价格。`deepxiv talent search|survey` 作为已弃用的别名仍可用，但旧库的 ID 在新库里不通用。
 
-同一套动词也适用于 1stAuthor 的其它垂域 —— `deepxiv fa domains` 列出全部：
+同一套动词也适用于 1stAuthor 的其它垂域（`deepxiv fa domains` 列出全部）。**完整文档：[FA.zh.md](FA.zh.md)。**
 
 ```bash
 deepxiv fa search law "个人信息保护" --top-k 5
@@ -145,6 +146,7 @@ people = reader.fa().search("talent", "speculative decoding", top_k=5)
 ## 文档
 
 - **[USAGE.zh.md](USAGE.zh.md)** —— 完整的 CLI 参考、Python API、流式、错误处理、批量、内置 research agent。（[English](USAGE.md)）
+- **[FA.zh.md](FA.zh.md)**：`deepxiv fa`，即 1stAuthor 垂域（talent、law、cases、trials、drugs、grants、filings、standards、CVE 等）的命令、过滤、价格、错误处理和 Python 用法。（[English](FA.md)）
 - **[skills/deepxiv-cli/SKILL.md](skills/deepxiv-cli/SKILL.md)** —— 给编码 agent 的即插即用操作说明。另有两个成型的工作流 skill：[热点摘要](skills/deepxiv-trending-digest/SKILL.md)、[baseline 表格](skills/deepxiv-baseline-table/SKILL.md)。
 - **[examples/](examples/)** —— 每个入口的可运行脚本。
 

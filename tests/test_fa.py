@@ -69,17 +69,17 @@ QUOTA_HEADERS = {
 
 SEARCH_BODY = {
     "domain": "talent",
-    "query": "文继荣",
+    "query": "Geoffrey Hinton",
     "hits": [{
-        "id": "12",
+        "id": "15023",
         "score": 8.0,
         "brief": {
-            "person_id": "12",
-            "name_line": "文继荣 Ji-Rong Wen · 中国人民大学高瓴人工智能学院 · 北京",
-            "role": "执行院长",
+            "person_id": "15023",
+            "name_line": "Geoffrey Hinton · University of Toronto",
+            "role": "Emeritus Professor",
             "h_index": 109,
             "citations_all": 68707,
-            "areas": ["信息检索", "大语言模型"],
+            "areas": ["Deep Learning", "Neural Networks"],
         },
     }],
     "warnings": [],
@@ -179,25 +179,25 @@ class TestClient:
     def test_search_request(self):
         s = FakeSession(FakeResponse(body=SEARCH_BODY, headers=QUOTA_HEADERS))
         c = FAClient(token="tok", session=s)
-        out = c.search("talent", "文继荣", top_k=3, filters={"org": "x"}, fields="head")
+        out = c.search("talent", "Geoffrey Hinton", top_k=3, filters={"org": "x"}, fields="head")
         call = s.calls[0]
         assert call["method"] == "POST"
         assert call["url"] == "https://data.rag.ac.cn/fa/v1/talent/search"
-        assert call["json"] == {"query": "文继荣", "top_k": 3, "filters": {"org": "x"}, "fields": "head"}
+        assert call["json"] == {"query": "Geoffrey Hinton", "top_k": 3, "filters": {"org": "x"}, "fields": "head"}
         assert call["headers"]["Authorization"] == "Bearer tok"
-        assert out["hits"][0]["id"] == "12"
+        assert out["hits"][0]["id"] == "15023"
         assert c.last_quota["general"]["remaining"] == 990
 
     def test_read_uses_read_path_with_params(self):
         s = FakeSession(FakeResponse(body={"data": {}}))
-        FAClient(token="tok", session=s).read("talent", 12, level="full", section="教育")
-        assert s.calls[0]["url"].endswith("/v1/talent/read/12")
+        FAClient(token="tok", session=s).read("talent", 15023, level="full", section="教育")
+        assert s.calls[0]["url"].endswith("/v1/talent/read/15023")
         assert s.calls[0]["params"] == {"level": "full", "section": "教育"}
 
     def test_read_html_returns_text(self):
         s = FakeSession(FakeResponse(headers={"Content-Type": "text/html; charset=utf-8"},
                                      text="<!doctype html>"))
-        out = FAClient(token="tok", session=s).read("talent", 12, format="html")
+        out = FAClient(token="tok", session=s).read("talent", 15023, format="html")
         assert out["text"] == "<!doctype html>"
 
     def test_ask_paths(self):
@@ -255,23 +255,23 @@ def run(*args):
 class TestFaCli:
     def test_search_text(self, fake):
         fake(FakeResponse(body=SEARCH_BODY))
-        r = run("search", "talent", "文继荣")
+        r = run("search", "talent", "Geoffrey Hinton")
         assert r.exit_code == 0, r.output
-        assert "[12] 文继荣 Ji-Rong Wen" in r.stdout
+        assert "[15023] Geoffrey Hinton" in r.stdout
         assert "h-index: 109" in r.stdout
         assert "💳 cost 2 · 990/1000" in r.stderr
         assert "💳" not in r.stdout
 
     def test_search_json_stdout_is_pure(self, fake):
         fake(FakeResponse(body=SEARCH_BODY))
-        r = run("search", "talent", "文继荣", "--json")
-        assert json.loads(r.stdout)["hits"][0]["id"] == "12"
+        r = run("search", "talent", "Geoffrey Hinton", "--json")
+        assert json.loads(r.stdout)["hits"][0]["id"] == "15023"
 
     def test_search_filters_validated_against_spec(self, fake):
         s = fake(FakeResponse(body=SPEC_BODY), FakeResponse(body=SEARCH_BODY))
-        r = run("search", "talent", "RAG", "-F", "org=中国人民大学", "-F", "h_index>=30", "--head")
+        r = run("search", "talent", "RAG", "-F", "org=University of Toronto", "-F", "h_index>=30", "--head")
         assert r.exit_code == 0, r.output
-        assert s.calls[1]["json"]["filters"] == {"org": "中国人民大学", "h_index": {"gte": 30}}
+        assert s.calls[1]["json"]["filters"] == {"org": "University of Toronto", "h_index": {"gte": 30}}
         assert s.calls[1]["json"]["fields"] == "head"
 
     def test_search_bad_filter_exits_2(self, fake):
@@ -281,21 +281,21 @@ class TestFaCli:
         assert "unknown filter field" in r.stderr
 
     def test_read_prints_data(self, fake):
-        fake(FakeResponse(body={"data": {"person_id": "12"}, "meta": {}}))
-        r = run("read", "talent", "12", "--level", "brief")
+        fake(FakeResponse(body={"data": {"person_id": "15023"}, "meta": {}}))
+        r = run("read", "talent", "15023", "--level", "brief")
         assert r.exit_code == 0
-        assert json.loads(r.stdout) == {"person_id": "12"}
+        assert json.loads(r.stdout) == {"person_id": "15023"}
 
     def test_read_full_prints_markdown(self, fake):
-        fake(FakeResponse(body={"text": "# Ji-Rong Wen", "meta": {}}))
-        r = run("read", "talent", "12", "--level", "full")
-        assert r.stdout.strip() == "# Ji-Rong Wen"
+        fake(FakeResponse(body={"text": "# Geoffrey Hinton", "meta": {}}))
+        r = run("read", "talent", "15023", "--level", "full")
+        assert r.stdout.strip() == "# Geoffrey Hinton"
 
     def test_read_error_lists_allowed_values(self, fake):
         fake(FakeResponse(status=400, body={"error": {
             "code": "invalid_request", "message": "unknown extra 'nope'",
             "details": {"extras": ["papers", "network"]}}}))
-        r = run("read", "talent", "12", "--extra", "nope")
+        r = run("read", "talent", "15023", "--extra", "nope")
         assert r.exit_code == 1
         assert "extras: papers, network" in r.stderr
 
@@ -314,17 +314,17 @@ class TestFaCli:
                 {"event": "route", "domain": "talent"},
                 {"event": "start"},
                 {"event": "answer_start"},
-                {"event": "answer_delta", "delta": "文继荣 "},
-                {"event": "answer_delta", "delta": "[talent:12]"},
-                {"event": "sources", "sources": [{"id": "12", "name_line": "文继荣 Ji-Rong Wen"}]},
+                {"event": "answer_delta", "delta": "Geoffrey Hinton "},
+                {"event": "answer_delta", "delta": "[talent:15023]"},
+                {"event": "sources", "sources": [{"id": "15023", "name_line": "Geoffrey Hinton"}]},
                 {"event": "done"},
             )))
-        r = run("ask", "信息检索 教授")
+        r = run("ask", "deep learning pioneers")
         assert r.exit_code == 0, r.output
         assert s.calls[0]["url"].endswith("/v1/ask/stream")
-        assert r.stdout == "文继荣 [talent:12]\n"
+        assert r.stdout == "Geoffrey Hinton [talent:15023]\n"
         assert "routed to talent" in r.stderr
-        assert "[12] 文继荣 Ji-Rong Wen" in r.stderr
+        assert "[15023] Geoffrey Hinton" in r.stderr
         assert "3 agentic call(s) left" in r.stderr
 
     def test_ask_stream_error_event_exits_nonzero(self, fake):

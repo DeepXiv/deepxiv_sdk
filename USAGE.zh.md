@@ -162,49 +162,18 @@ deepxiv search "transformer model" --use-fine-rerank
 
 ## CLI：fa —— 1stAuthor 垂域（talent、law、trials……）
 
-> **Beta。** 功能在 `1.2.0b1`，仅源码安装。
+> **Beta。** 功能在 `1.2.0b1`，仅源码安装。**完整文档：[FA.zh.md](FA.zh.md)。**
 
-`deepxiv fa` 用你的 deepxiv token 访问 [1stAuthor](https://1stauthor.com) 的垂域：学者（`talent`）、中外法规（`law`、`us_law`）、裁判文书（`cases`）、临床试验、药品、基金、公告、标准、CVE、美国联邦公报。请求经 `data.rag.ac.cn/fa` 转发，你不需要 1stAuthor 的 key。
+`deepxiv fa` 用你的 deepxiv token 访问 [1stAuthor](https://1stauthor.com) 的垂域：学者、法规、裁判文书、临床试验、药品、基金、公告、标准、CVE、美国联邦公报。
 
 ```bash
-deepxiv fa domains                       # 有哪些域（免费）
-deepxiv fa spec talent                   # 过滤字段、读取级别、extra、价格（免费）
-
-# 在某个域里检索
-deepxiv fa search talent "文继荣"                     # 中文名、拼音、英文名都行
-deepxiv fa search talent "信息检索 教授" -F org=中国人民大学 -F "h_index>=30" --top-k 5
-deepxiv fa search law "个人信息保护" --top-k 5
-deepxiv fa search talent "RAG" --head --json          # 更丰富的命中，完整 JSON
-
-# 读检索到的结果
-deepxiv fa read talent 12                             # 默认级别（talent 为 detail）
-deepxiv fa read talent 12 --level brief               # 只要卡片
-deepxiv fa read talent 12 --level full                # 完整档案（markdown）
-deepxiv fa read talent 12 --extra network             # 单个 extra：合作者、导师、学生
-deepxiv fa read talent 12 --level full -p section=教育
-deepxiv fa read talent 12 --format html > wen.html    # 渲染好的网页
-deepxiv fa read talent 12 257 --level brief           # 一次读多个 id
-
-# 辅助命令
-deepxiv fa facets talent role_norm                    # 可用于过滤的取值
-deepxiv fa resolve 文继荣 "Zhicheng Dou"              # 人名 → talent id
-deepxiv fa whoami                                     # token 类型和今日配额
-
-# 带引用的 agentic 回答（需注册 key）
-deepxiv fa ask "国内做信息检索的教授有哪些" --domain talent
-deepxiv fa ask "个人信息出境需要满足什么条件" --domain law --effort high
-deepxiv fa ask "北京有谁在做投机解码"                   # 不指定 --domain：自动选域
+deepxiv fa domains                                    # 有哪些域（免费）
+deepxiv fa search talent "Geoffrey Hinton"            # 在某个域里检索
+deepxiv fa read talent 15023 --level brief            # 读检索到的结果
+deepxiv fa ask "自监督学习领域最有影响力的研究者有哪些" --domain talent   # 需注册 key
 ```
 
-**过滤**（`-F`，可重复，之间为 AND）：`k=v` 等于、`k=a,b` 任一、`k>=n` / `k<=n` 上下界、`k=n..m` 区间、`k~text` 全文匹配。各域的字段和允许的运算符见 `deepxiv fa spec DOMAIN`；未知字段会在发请求前被拒绝。
-
-**输出**：数据走 stdout，配额 / 路由 / 来源走 stderr，与 `deepxiv ask` 一致，`> file` 只会拿到数据。`--json` 输出完整响应（含 `meta.quota`）。
-
-**计费**：`search`、`read`、`facets`、`resolve` 按 1stAuthor 的价格扣通用 daily limit（search 2、`--head` 3、read 按级别 / extra 计价，见 `spec`；facets 1、resolve 2）。`domains`、`spec`、`whoami` 免费。每次调用会在 stderr 打出 `💳 cost N · 剩余/上限`。`fa ask` 和 `deepxiv ask` 共用 agentic 配额，需要注册 key；自动注册的 token 会得到 403 并提示去注册。每个 key 最多同时跑 4 个 `ask`，超出会返回 429 并告诉你等多久。
-
-**流式**：`fa ask` 流式输出答案。若 agent 在流开始后失败，CLI 会打出错误（以及配额是否已退还）并以 1 退出。
-
-`deepxiv talent search` 和 `deepxiv talent survey` 现在是 `fa search talent` 和 `fa read talent` 的**弃用别名**，保留一个版本。旧人才库的 ID 在新库里不通用，请重新检索。
+`search`、`read`、`facets`、`resolve` 任何 token 都能用，扣通用 daily limit；`fa ask` 需要注册 key。`deepxiv talent search|survey` 已是弃用别名。过滤语法、读取级别、价格、错误处理、Python 用法和迁移说明都在 [FA.zh.md](FA.zh.md)。
 
 ## 其他数据源
 
@@ -362,32 +331,7 @@ reader.biomed_search(...) / reader.biomed_data(...) # bioRxiv / medRxiv
 
 ### 1stAuthor 垂域（`FAClient`）
 
-```python
-from deepxiv_sdk import FAClient, FAError, build_filters
-
-fa = FAClient(token="...")                     # 或 reader.fa()
-fa.domains()                                   # 免费
-spec = fa.spec("talent")                       # 免费：过滤字段、级别、价格
-hits = fa.search("talent", "信息检索", top_k=5,
-                 filters=build_filters(["org=中国人民大学", "h_index>=30"],
-                                       spec["search"]["filters"]))
-person = fa.read("talent", hits["hits"][0]["id"], level="brief")
-fa.read("talent", 12, extra="network")
-fa.read_many("talent", [12, 257], level="brief")
-fa.facets("talent", "role_norm")
-fa.resolve(["文继荣", "Zhicheng Dou"])
-fa.whoami()
-
-# 仅注册 key
-fa.ask("个人信息出境需要满足什么条件", "law", effort="medium")
-for event in fa.ask_stream("北京有谁在做 RAG"):               # 不指定域：自动选域
-    if event["event"] == "answer_delta":
-        print(event["delta"], end="")
-    elif event["event"] == "error":                          # HTTP 仍是 200
-        raise RuntimeError(event["message"])
-```
-
-出错时抛 `FAError`，带 `status`、`code`、`message`、`details`、`retry_after`；自动注册 token 调 `ask` 得到的 403 会让 `err.needs_registered_key` 为真。每个响应里有 `meta.quota`，`fa.last_quota` 是上一次调用的配额响应头。
+`FAClient`（或 `reader.fa()`）是 `deepxiv fa` 的 Python 接口，见 [FA.zh.md § Python](FA.zh.md#python)。
 
 <details>
 <summary><b><code>reader.search()</code> 参数</b></summary>
@@ -767,8 +711,7 @@ results = reader.search("agent")  # 会输出日志
 - **`ask` 答非所问？** 换个更具体的说法，而不是提高 `--effort` —— effort 只增加阅读轮数，改变不了第一轮的召回方向。
 - **`ask` 列出了和答案无关的论文？** 那是召回集不是引用列表，`--all-sources` 会完整显示。
 - **检索返回 0 条？** 松开过滤条件 —— 日期和引用数叠加会很快过窄。
-- **`fa read talent` 说找不到？** ID 来自 `deepxiv fa search talent`；旧 `talent` 库、arXiv、Scholar 的 ID 都不通用。
-- **`fa ask` 返回 403？** 同 `ask`：需要注册 key。`fa search` / `read` 任何 token 都能用。
+- **`deepxiv fa` 的问题？** 见 [FA.zh.md § 常见问题](FA.zh.md#常见问题)。
 - **Agent 报 `Reasoning content is only supported as the last assistant message`？** 推理模型做多轮工具调用需要关掉 thinking：`deepxiv agent query "…" --disable-thinking`，或 `Agent(..., enable_thinking=False)`。
 - **`agent.add_paper()` 加不进新论文？** 论文还没入库时返回 `False` —— 1–3 天内的论文经常还没有。
 

@@ -162,49 +162,18 @@ Returns `{status, total_count, result: [...]}`. Each result carries `arxiv_id`, 
 
 ## CLI: fa — 1stAuthor domains (talent, law, trials, ...)
 
-> **Beta.** Ships in `1.2.0b1`, source install only.
+> **Beta.** Ships in `1.2.0b1`, source install only. **Full guide: [FA.md](FA.md).**
 
-`deepxiv fa` reaches [1stAuthor](https://1stauthor.com)'s vertical domains with your deepxiv token — researchers (`talent`), Chinese and international statutes (`law`, `us_law`), court judgments (`cases`), clinical trials, drugs, grants, filings, standards, CVEs, the Federal Register. Calls go through `data.rag.ac.cn/fa`; you never need a 1stAuthor key.
+`deepxiv fa` reaches [1stAuthor](https://1stauthor.com)'s domains (researchers, statutes, judgments, clinical trials, drugs, grants, filings, standards, CVEs, the Federal Register) with your deepxiv token.
 
 ```bash
-deepxiv fa domains                       # what's there (free)
-deepxiv fa spec talent                   # filters, read levels, extras, prices (free)
-
-# Search one domain
-deepxiv fa search talent "文继荣"                     # names: Chinese, pinyin, English
-deepxiv fa search talent "信息检索 教授" -F org=中国人民大学 -F "h_index>=30" --top-k 5
-deepxiv fa search law "个人信息保护" --top-k 5
-deepxiv fa search talent "RAG" --head --json          # richer hits, full JSON
-
-# Read what you found
-deepxiv fa read talent 12                             # default level (detail for talent)
-deepxiv fa read talent 12 --level brief               # the card only
-deepxiv fa read talent 12 --level full                # the full profile, markdown
-deepxiv fa read talent 12 --extra network             # one extra facet: coauthors, advisors, students
-deepxiv fa read talent 12 --level full -p section=教育
-deepxiv fa read talent 12 --format html > wen.html    # a rendered page
-deepxiv fa read talent 12 257 --level brief           # several ids in one call
-
-# Helpers
-deepxiv fa facets talent role_norm                    # values to filter on
-deepxiv fa resolve 文继荣 "Zhicheng Dou"              # names → talent ids
-deepxiv fa whoami                                     # token type and today's quota
-
-# Agentic answer with citations (registered key)
-deepxiv fa ask "国内做信息检索的教授有哪些" --domain talent
-deepxiv fa ask "个人信息出境需要满足什么条件" --domain law --effort high
-deepxiv fa ask "who works on speculative decoding in Beijing"   # no --domain: auto-routed
+deepxiv fa domains                                    # what's there (free)
+deepxiv fa search talent "Geoffrey Hinton"            # search a domain
+deepxiv fa read talent 15023 --level brief            # read what you found
+deepxiv fa ask "who are the leading researchers on self-supervised learning" --domain talent   # registered key
 ```
 
-**Filters** (`-F`, repeatable, combined with AND): `k=v` equals, `k=a,b` any of, `k>=n` / `k<=n` bounds, `k=n..m` range, `k~text` full-text. Fields and allowed operators per domain come from `deepxiv fa spec DOMAIN`; unknown fields are rejected before the call.
-
-**Output**: data goes to stdout, quota/routing/sources go to stderr — the same split as `deepxiv ask`, so `> file` captures only data. `--json` prints the full response, including `meta.quota`.
-
-**Cost**: `search`, `read`, `facets` and `resolve` spend your general daily limit at 1stAuthor's prices (search 2, `--head` 3, read by level/extra — `spec` lists each; facets 1, resolve 2). `domains`, `spec` and `whoami` are free. Each call prints `💳 cost N · remaining/limit` to stderr. `fa ask` spends the agentic quota shared with `deepxiv ask` and needs a registered key; the auto-registered token gets a 403 with a pointer to registration. At most 4 `ask` calls run at once per key — a 429 says how long to wait.
-
-**Streaming**: `fa ask` streams the answer. If the agent fails after the stream opened, the CLI prints the error (and whether the quota was refunded) and exits 1.
-
-`deepxiv talent search` and `deepxiv talent survey` are **deprecated aliases** for `fa search talent` and `fa read talent`, kept for one release. Person IDs from the old talent index don't carry over — search again.
+`search`, `read`, `facets` and `resolve` work with any token and spend the general daily limit. `fa ask` needs a registered key. `deepxiv talent search|survey` are deprecated aliases. Filters, read levels, prices, errors, the Python API and migration notes are all in [FA.md](FA.md).
 
 ## Other sources
 
@@ -364,32 +333,7 @@ reader.biomed_search(...) / reader.biomed_data(...) # bioRxiv / medRxiv
 
 ### 1stAuthor domains (`FAClient`)
 
-```python
-from deepxiv_sdk import FAClient, FAError, build_filters
-
-fa = FAClient(token="...")                     # or reader.fa()
-fa.domains()                                   # free
-spec = fa.spec("talent")                       # free: filters, levels, prices
-hits = fa.search("talent", "信息检索", top_k=5,
-                 filters=build_filters(["org=中国人民大学", "h_index>=30"],
-                                       spec["search"]["filters"]))
-person = fa.read("talent", hits["hits"][0]["id"], level="brief")
-fa.read("talent", 12, extra="network")
-fa.read_many("talent", [12, 257], level="brief")
-fa.facets("talent", "role_norm")
-fa.resolve(["文继荣", "Zhicheng Dou"])
-fa.whoami()
-
-# Registered key only
-fa.ask("个人信息出境需要满足什么条件", "law", effort="medium")
-for event in fa.ask_stream("who works on RAG in Beijing"):   # no domain: auto-routed
-    if event["event"] == "answer_delta":
-        print(event["delta"], end="")
-    elif event["event"] == "error":                          # arrives with HTTP 200
-        raise RuntimeError(event["message"])
-```
-
-Errors raise `FAError` with `status`, `code`, `message`, `details` and `retry_after`; `err.needs_registered_key` is true for the 403 an auto-registered token gets from `ask`. Each response carries `meta.quota`, and `fa.last_quota` holds the quota headers of the last call.
+`FAClient` (or `reader.fa()`) covers `deepxiv fa` from Python. See [FA.md § Python](FA.md#python).
 
 <details>
 <summary><b><code>reader.search()</code> parameters</b></summary>
@@ -774,8 +718,7 @@ results = reader.search("agent")  # Outputs logs
 - **`ask` missed the point?** Rephrase more specifically rather than raising `--effort` — effort adds reading rounds but can't redirect first-round recall.
 - **`ask` listed papers unrelated to the answer?** That's the retrieval set, not the citation list. `--all-sources` shows it in full.
 - **A search returns 0 results?** Loosen filters — stacked date and citation constraints over-narrow quickly.
-- **`fa read talent` says not found?** IDs come from `deepxiv fa search talent`; IDs from the old `talent` index, arXiv or Scholar don't work.
-- **`fa ask` returns 403?** Same as `ask`: it needs a registered key. `fa search` / `read` work with any token.
+- **`deepxiv fa` problems?** See [FA.md § Troubleshooting](FA.md#troubleshooting).
 - **Agent errors with `Reasoning content is only supported as the last assistant message`?** Reasoning models need thinking off for multi-round tool use: `deepxiv agent query "…" --disable-thinking`, or `Agent(..., enable_thinking=False)`.
 - **`agent.add_paper()` on a brand-new paper?** Returns `False` when the paper isn't indexed yet — papers under 1–3 days old often aren't.
 

@@ -1184,9 +1184,9 @@ EXAMPLES:
   deepxiv ask "NeurIPS 2025 best paper winner" --web --search-type news
 
   # 1stAuthor domains
-  deepxiv fa search talent "文继荣"
-  deepxiv fa search talent "信息检索 教授" -F org=中国人民大学 -F "h_index>=30"
-  deepxiv fa read talent 12
+  deepxiv fa search talent "Geoffrey Hinton"
+  deepxiv fa search talent "deep learning" -F "org=University of Toronto" -F "h_index>=50"
+  deepxiv fa read talent 15023
   deepxiv fa search law "个人信息保护" --top-k 5
 
   # Search examples
@@ -1568,11 +1568,11 @@ def fa():
     Examples:
         deepxiv fa domains
         deepxiv fa spec talent
-        deepxiv fa search talent "文继荣"
-        deepxiv fa search talent "具身智能" -F org=清华大学 -F h_index>=30
-        deepxiv fa read talent 12 --level brief
+        deepxiv fa search talent "Geoffrey Hinton"
+        deepxiv fa search talent "deep learning" -F "org=University of Toronto" -F "h_index>=50"
+        deepxiv fa read talent 15023 --level brief
         deepxiv fa search law "个人信息保护" --top-k 5
-        deepxiv fa ask "国内做信息检索的教授有哪些" --domain talent
+        deepxiv fa ask "who are the leading researchers on self-supervised learning" --domain talent
     """
     pass
 
@@ -1781,8 +1781,8 @@ def fa_search(domain, query, filters, top_k, offset, mode, head, token, json_out
 
     \b
     Examples:
-        deepxiv fa search talent "文继荣"
-        deepxiv fa search talent "信息检索 教授" -F org=中国人民大学 --top-k 5
+        deepxiv fa search talent "Geoffrey Hinton"
+        deepxiv fa search talent "deep learning" -F "org=University of Toronto" --top-k 5
         deepxiv fa search talent "RAG" -F h_index>=30 -F career_stage=junior,senior
         deepxiv fa search law "个人信息保护" --json
     """
@@ -1846,11 +1846,11 @@ def fa_read(domain, ids, level, extra, view, output_format, params, token, json_
 
     \b
     Examples:
-        deepxiv fa read talent 12
-        deepxiv fa read talent 12 --level brief
-        deepxiv fa read talent 12 --extra network
-        deepxiv fa read talent 12 --level full -p section=教育
-        deepxiv fa read talent 12 257 --level brief
+        deepxiv fa read talent 15023
+        deepxiv fa read talent 15023 --level brief
+        deepxiv fa read talent 15023 --extra network
+        deepxiv fa read talent 15023 --level full -p section=荣誉与奖项
+        deepxiv fa read talent 15023 3426 --level brief
     """
     if view and (level or extra):
         click.echo("❌ --view can't be combined with --level / --extra", err=True)
@@ -1914,7 +1914,7 @@ def fa_resolve(names, token, json_output):
 
     \b
     Example:
-        deepxiv fa resolve 文继荣 "Zhicheng Dou"
+        deepxiv fa resolve "Geoffrey Hinton" "Yann LeCun"
     """
     client = _fa_client(token)
     result = _run_fa_call(lambda: client.resolve(names))
@@ -1977,7 +1977,7 @@ def fa_ask(query, domain, effort, no_stream, no_sources, verbose, token, json_ou
 
     \b
     Examples:
-        deepxiv fa ask "国内做信息检索的教授有哪些" --domain talent
+        deepxiv fa ask "who are the leading researchers on self-supervised learning" --domain talent
         deepxiv fa ask "个人信息出境需要满足什么条件" --domain law --effort high
         deepxiv fa ask "who works on speculative decoding in Beijing"
     """

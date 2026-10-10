@@ -39,8 +39,8 @@ use_cases: ["literature-search", "paper-analysis", "knowledge-synthesis", "resea
 | Preview first 10k chars | `deepxiv paper <id> --preview` | `deepxiv paper 2409.05591 --preview` |
 | Get full text | `deepxiv paper <id>` | `deepxiv paper 2409.05591` |
 | Access biomedical paper | `deepxiv pmc <id>` | `deepxiv pmc PMC544940` |
-| Find researchers on a topic | `deepxiv fa search talent` | `deepxiv fa search talent "RAG" -F org=清华大学` |
-| Read one researcher's profile | `deepxiv fa read talent <id>` | `deepxiv fa read talent 257` |
+| Find researchers on a topic | `deepxiv fa search talent` | `deepxiv fa search talent "deep learning" -F "h_index>=50"` |
+| Read one researcher's profile | `deepxiv fa read talent <id>` | `deepxiv fa read talent 3426` |
 | Search statutes, judgments, trials, drugs, CVEs... | `deepxiv fa search <domain>` | `deepxiv fa search law "个人信息保护"` |
 | Intelligent analysis | `deepxiv agent query` | `deepxiv agent query "analyze this paper"` |
 
@@ -228,20 +228,20 @@ deepxiv fa domains                 # list domains (free)
 deepxiv fa spec talent             # filters, read levels/extras and their prices (free) — check before filtering
 
 # search → read, same as papers
-deepxiv fa search talent "Zhicheng Dou"                       # names: Chinese, pinyin, English
-deepxiv fa search talent "RAG" -F org=清华大学 -F "h_index>=30" --top-k 5
-deepxiv fa read talent 257                                    # profile (default level)
-deepxiv fa read talent 257 --level brief                      # card only — cheapest
-deepxiv fa read talent 257 --level full                       # full researched profile, markdown
-deepxiv fa read talent 257 --extra network                    # coauthors / advisors / students
+deepxiv fa search talent "Yann LeCun"                         # names: Chinese, pinyin, English
+deepxiv fa search talent "deep learning" -F "org=University of Toronto" -F "h_index>=50" --top-k 5
+deepxiv fa read talent 3426                                   # profile (default level)
+deepxiv fa read talent 3426 --level brief                     # card only — cheapest
+deepxiv fa read talent 3426 --level full                      # full researched profile, markdown
+deepxiv fa read talent 3426 --extra network                   # coauthors / advisors / students
 deepxiv fa search law "个人信息保护" --top-k 5 --json
 
-deepxiv fa resolve "Zhicheng Dou" 文继荣                      # batch names → talent ids
+deepxiv fa resolve "Geoffrey Hinton" "Yann LeCun"             # batch names → talent ids
 deepxiv fa facets talent role_norm                            # values usable in -F
 
 # cited answer over a domain (registered key, agentic quota)
-deepxiv fa ask "who works on RAG at Renmin University" --domain talent
-deepxiv fa ask "个人信息出境需要满足什么条件"                   # no --domain: auto-routed
+deepxiv fa ask "who are the leading researchers on self-supervised learning" --domain talent
+deepxiv fa ask "个人信息出境需要满足什么条件"     # no --domain: auto-routed
 ```
 
 **Filters**: `-F k=v`, `k=a,b` (any), `k>=n`, `k<=n`, `k=n..m`, `k~text`.
@@ -255,6 +255,8 @@ full response for parsing.
 `--level brief` first, go deeper only when needed. `fa ask` uses the agentic
 pool like `deepxiv ask` and 403s on the auto-registered token — tell the user to
 register at https://data.rag.ac.cn/register; `fa search`/`read` still work.
+
+Full reference: [FA.md](../../FA.md).
 
 **Deprecated**: `deepxiv talent search|survey` are aliases for
 `fa search talent` / `fa read talent`. IDs from the old talent index don't

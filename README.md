@@ -40,7 +40,7 @@ DeepXiv removes the tradeoff. Papers are pre-parsed, so an agent can spend 300 t
 
 ## DeepXiv × 1stAuthor
 
-DeepXiv works closely with [1stAuthor](https://1stauthor.com) to serve data beyond papers: researchers, statutes, court judgments, clinical trials, drugs, grants, filings, standards and CVEs, all reached through `deepxiv fa` with the same token.
+DeepXiv works closely with [1stAuthor](https://1stauthor.com) to serve data beyond papers: researchers, statutes, court judgments, clinical trials, drugs, grants, filings, standards and CVEs, all reached through `deepxiv fa` with the same token. **→ [The `deepxiv fa` guide](FA.md)**
 
 DeepXiv itself stays focused on agentic data services for academic papers, and **will remain free**. If you need higher limits on the 1stAuthor domains, see [1stauthor.com](https://1stauthor.com).
 
@@ -107,15 +107,16 @@ Filters combine with `AND` — `--authors`, `--orgs`, `--categories`, `--venue`/
 **4. Find the people behind it.** A method is worth more when you know whose lab it comes from and what else they've built.
 
 ```bash
-deepxiv fa search talent "speculative decoding" --top-k 5   # names, topics, or both
-deepxiv fa search talent "RAG" -F org=清华大学 -F "h_index>=30"
-deepxiv fa read talent 12                                    # profile: bio, education, career, top papers, metrics
-deepxiv fa read talent 12 --level full                       # the full researched profile (markdown)
+deepxiv fa search talent "speculative decoding" --top-k 5    # by topic
+deepxiv fa search talent "Geoffrey Hinton"                    # or by name
+deepxiv fa search talent "deep learning" -F "org=University of Toronto" -F "h_index>=50"
+deepxiv fa read talent 15023                                  # profile: bio, education, career, top papers, metrics
+deepxiv fa read talent 15023 --level full                     # the full researched profile (markdown)
 ```
 
 Names (Chinese, pinyin, English) and topics both work. IDs from `search` feed `read`; `deepxiv fa spec talent` lists the filters and what each read level costs. `deepxiv talent search|survey` still work as deprecated aliases, but IDs from the old index don't carry over.
 
-The same verbs cover 1stAuthor's other domains — `deepxiv fa domains` lists them:
+The same verbs cover 1stAuthor's other domains (`deepxiv fa domains` lists them). **Full guide: [FA.md](FA.md).**
 
 ```bash
 deepxiv fa search law "个人信息保护" --top-k 5
@@ -145,6 +146,7 @@ people = reader.fa().search("talent", "speculative decoding", top_k=5)
 ## Documentation
 
 - **[USAGE.md](USAGE.md)** — full CLI reference, the Python API, streaming, error handling, batching, and the built-in research agent. ([中文](USAGE.zh.md))
+- **[FA.md](FA.md)**: `deepxiv fa`, the 1stAuthor domains (talent, law, cases, trials, drugs, grants, filings, standards, CVEs, …): commands, filters, prices, errors, Python. ([中文](FA.zh.md))
 - **[skills/deepxiv-cli/SKILL.md](skills/deepxiv-cli/SKILL.md)** — drop-in operating instructions for coding agents. Two worked workflows also ship as skills: [trending digest](skills/deepxiv-trending-digest/SKILL.md), [baseline table](skills/deepxiv-baseline-table/SKILL.md).
 - **[examples/](examples/)** — runnable scripts for each entry point.
 

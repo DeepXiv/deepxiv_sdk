@@ -18,16 +18,16 @@ class TestReaderAliases:
         reader = Reader(token="tok")
         with mock.patch.object(FAClient, "search", return_value=SEARCH_BODY) as search:
             with pytest.warns(DeprecationWarning):
-                out = reader.talent_search("文继荣", semantic=True, limit=3)
-        search.assert_called_once_with("talent", "文继荣", top_k=3, offset=None)
+                out = reader.talent_search("Geoffrey Hinton", semantic=True, limit=3)
+        search.assert_called_once_with("talent", "Geoffrey Hinton", top_k=3, offset=None)
         assert out is SEARCH_BODY
 
     def test_talent_survey_forwards_and_warns(self):
         reader = Reader(token="tok")
         with mock.patch.object(FAClient, "read", return_value={"data": {}}) as read:
             with pytest.warns(DeprecationWarning):
-                reader.talent_survey(12, refresh=True)
-        read.assert_called_once_with("talent", 12)
+                reader.talent_survey(15023, refresh=True)
+        read.assert_called_once_with("talent", 15023)
 
     def test_fa_client_shares_token_and_base_url(self):
         c = Reader(token="tok", base_url="http://x/").fa()
@@ -37,13 +37,13 @@ class TestReaderAliases:
 class TestCliAliases:
     def test_search_alias(self, fake):
         s = fake(FakeResponse(body=SEARCH_BODY))
-        r = CliRunner().invoke(main, ["talent", "search", "文继荣", "-s", "--limit", "3", "-t", "tok"])
+        r = CliRunner().invoke(main, ["talent", "search", "Geoffrey Hinton", "-s", "--limit", "3", "-t", "tok"])
         assert r.exit_code == 0, r.output
         assert "deprecated" in r.stderr and "deepxiv fa search talent" in r.stderr
         assert "Ignored" in r.stderr and "--semantic" in r.stderr
         assert s.calls[0]["url"].endswith("/v1/talent/search")
         assert s.calls[0]["json"]["top_k"] == 3
-        assert "[12] 文继荣" in r.stdout
+        assert "[15023] Geoffrey Hinton" in r.stdout
 
     def test_search_alias_maps_tags_and_stage_to_filters(self, fake):
         s = fake(
@@ -65,15 +65,15 @@ class TestCliAliases:
         assert r.exit_code == 1
 
     def test_survey_alias(self, fake):
-        s = fake(FakeResponse(body={"data": {"person_id": "12"}}))
-        r = CliRunner().invoke(main, ["talent", "survey", "12", "-t", "tok"])
+        s = fake(FakeResponse(body={"data": {"person_id": "15023"}}))
+        r = CliRunner().invoke(main, ["talent", "survey", "15023", "-t", "tok"])
         assert r.exit_code == 0, r.output
         assert "deepxiv fa read talent" in r.stderr
-        assert s.calls[0]["url"].endswith("/v1/talent/read/12")
-        assert '"person_id": "12"' in r.stdout
+        assert s.calls[0]["url"].endswith("/v1/talent/read/15023")
+        assert '"person_id": "15023"' in r.stdout
 
     def test_survey_markdown_reads_full_level(self, fake):
         s = fake(FakeResponse(body={"text": "# Report"}))
-        r = CliRunner().invoke(main, ["talent", "survey", "12", "-f", "markdown", "-t", "tok"])
+        r = CliRunner().invoke(main, ["talent", "survey", "15023", "-f", "markdown", "-t", "tok"])
         assert s.calls[0]["params"] == {"level": "full"}
         assert r.stdout.strip() == "# Report"

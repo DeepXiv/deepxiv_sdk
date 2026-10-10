@@ -282,7 +282,7 @@ class FAClient:
 
     Example:
         >>> fa = FAClient(token="your_deepxiv_token")
-        >>> hits = fa.search("talent", "文继荣", top_k=3)
+        >>> hits = fa.search("talent", "Geoffrey Hinton", top_k=3)
         >>> person = fa.read("talent", hits["hits"][0]["id"], level="brief")
     """
 
@@ -382,7 +382,7 @@ class FAClient:
     ) -> Dict[str, Any]:
         """POST /v1/{domain}/search.
 
-        ``filters`` uses fa's filter dict, e.g. ``{"org": "清华大学", "h_index": {"gte": 30}}``
+        ``filters`` uses fa's filter dict, e.g. ``{"org": "University of Toronto", "h_index": {"gte": 50}}``
         (see :func:`build_filters`). ``fields="head"`` returns richer hits at a higher price.
         """
         body = _clean({
