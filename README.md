@@ -11,9 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/DeepXiv/deepxiv_sdk/blob/main/assets/deepxiv_promo.mp4"><img src="./assets/deepxiv_promo_poster.jpg" width="100%" alt="DeepXiv in one minute"></a>
-  <br>
-  <b><a href="https://github.com/DeepXiv/deepxiv_sdk/blob/main/assets/deepxiv_promo.mp4">▶ Watch the one-minute video</a></b> · <em>One minute: 17 data domains, progressive reading, and four real agent runs — papers, talent, fellow citations, law</em>
+  <img src="./assets/deepxiv_cover.jpg" width="100%" alt="DeepXiv — the best vertical-domain data service for agents">
 </p>
 
 ---
