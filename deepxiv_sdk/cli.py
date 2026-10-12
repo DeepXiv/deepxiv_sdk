@@ -1633,6 +1633,14 @@ def _exit_on_fa_error(error):
         for key, value in details.items():
             if isinstance(value, list):
                 click.echo(f"   {key}: {', '.join(str(v) for v in value)}", err=True)
+            elif isinstance(value, str) and key in ("alternative", "how"):
+                click.echo(f"   {key}: {value}", err=True)
+        if status == 403 and details.get("grant"):
+            # A read level gated behind a grant (e.g. cases full text); the server names the open level.
+            level = re.search(r"level=(\w+)", str(details.get("alternative", "")))
+            if level:
+                click.echo(f"💡 改用 `--level {level.group(1)}`，不需要授权。 / "
+                           f"Use `--level {level.group(1)}` instead; it needs no grant.", err=True)
         click.echo("", err=True)
     sys.exit(1)
 

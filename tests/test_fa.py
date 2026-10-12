@@ -377,6 +377,19 @@ class TestFaCli:
         assert r.exit_code == 1
         assert "all taken" in r.stderr and "data.rag.ac.cn/register" in r.stderr
 
+    def test_read_grant_403_shows_alternative_level(self, fake):
+        fake(FakeResponse(status=403, body={"error": {
+            "code": "forbidden",
+            "message": "view 'raw' of 'cases' needs the 'cases:fulltext' grant on your API key",
+            "details": {"grant": "cases:fulltext",
+                        "alternative": "GET /v1/cases/read/<id>?level=detail（解析后的结构化字段，不需要授权）",
+                        "how": "contact us to have a key issued with this grant",
+                        "your_scopes": ["law", "cases"]}}}))
+        r = run("read", "cases", "abc", "-l", "full")
+        assert r.exit_code == 1
+        assert "cases:fulltext" in r.stderr and "alternative: GET" in r.stderr
+        assert "--level detail" in r.stderr and "Register" not in r.stderr
+
     def test_whoami_trial(self, fake):
         fake(FakeResponse(body={"source": "sdk", "name": "sdk-1", "quota": {"used": 1, "daily_limit": 1000, "remaining": 999},
                                 "agent": {"tier": "trial", "trial_limit": 3, "used": 1, "remaining": 2},
