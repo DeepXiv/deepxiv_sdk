@@ -40,6 +40,41 @@ DeepXiv removes the tradeoff. Papers are pre-parsed, so an agent can spend 300 t
 
 DeepXiv works closely with [1stAuthor](https://1stauthor.com) to serve data beyond papers: researchers, statutes, court judgments, clinical trials, drugs, grants, filings, standards and CVEs, all reached through `deepxiv fa` with the same token. **→ [The `deepxiv fa` guide](FA.md)**
 
+One CLI, twelve domains, the same three verbs: `search` → `read` → `ask`.
+
+| Domain | What's in it |
+|---|---|
+| `talent` | AI researcher profiles: education, career, top papers, metrics |
+| `appraise` | What academicians and fellows said when they cited a paper |
+| `law` · `us_law` · `fr` | Chinese and 25 other jurisdictions' statutes; US statutes, regulations, Federal Register |
+| `cases` | Chinese and US court judgments |
+| `trials` · `drugs` · `grants` | ClinicalTrials.gov, openFDA drug labels, NSF / NIH grants |
+| `filings` · `standards` · `cve` | SEC and Chinese company filings, Chinese national standards, NVD + CISA KEV + EPSS |
+
+> **Pass `--domain` (`-d`).** Auto-routing (`fa ask` without `-d`) is still in early development and can pick the wrong domain. Name the domain yourself; `deepxiv fa domains` lists them and `deepxiv fa spec DOMAIN` shows its filters.
+
+```bash
+# People: China-based students working on world models
+deepxiv fa search talent "world model" -F career_stage=student -F location=北京,上海 -k 20
+
+# Which academicians / fellows cited DeepSeek-R1, and what the positive ones said
+deepxiv fa read appraise arxiv:2501.12948 -l brief
+deepxiv fa read appraise arxiv:2501.12948 -p stance=positive -p org=CAS,CAE
+
+# Law and cases: statutes plus US Supreme Court judgments
+deepxiv fa search law "个人信息保护" -k 5
+deepxiv fa search cases "qualified immunity police" -F country=us -F court_level=scotus -k 5
+
+# Trials, filings, vulnerabilities
+deepxiv fa search trials "GLP-1 obesity" -F phase=PHASE3 -F overall_status=RECRUITING -k 5
+deepxiv fa search filings "CEO resignation" -F market=us -F "filed_year>=2023" -k 5
+deepxiv fa search cve "*" -F kev=true -F severity=critical,high --sort epss -k 10
+
+# A cited answer over one domain (agentic quota; SDK token: 3 trial asks)
+deepxiv fa ask "个人信息出境需要满足什么条件" -d law
+deepxiv fa ask "DeepSeek-R1 得到了哪些院士的正面评价" -d appraise -p paper=arxiv:2501.12948
+```
+
 DeepXiv itself stays focused on agentic data services for academic papers, and **will remain free**. If you need higher limits on the 1stAuthor domains, see [1stauthor.com](https://1stauthor.com).
 
 > 1stAuthor is in closed beta. Questions or problems? [Open an issue](https://github.com/DeepXiv/deepxiv_sdk/issues).

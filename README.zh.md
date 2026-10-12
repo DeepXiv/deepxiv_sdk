@@ -40,6 +40,41 @@ DeepXiv 把这个取舍消掉。论文是预先解析好的，agent 可以先花
 
 DeepXiv 与 [1stAuthor](https://1stauthor.com) 深度合作，提供论文之外的多领域数据服务：学者、法规、裁判文书、临床试验、药品、基金、公告、标准、CVE 等，都可以用同一个 token 通过 `deepxiv fa` 访问。**→ [`deepxiv fa` 使用文档](FA.zh.md)**
 
+一个 CLI，十二个垂域，同一套动词：`search` → `read` → `ask`。
+
+| 域 | 内容 |
+|---|---|
+| `talent` | AI 学者档案：教育、履历、代表作、指标 |
+| `appraise` | 院士和 Fellow 引用一篇论文时的评价 |
+| `law` · `us_law` · `fr` | 中国及其它 25 个法域的法律法规；美国法典、联邦法规、Federal Register |
+| `cases` | 中美法院判决 |
+| `trials` · `drugs` · `grants` | ClinicalTrials.gov 临床试验、openFDA 药品说明书、NSF / NIH 基金 |
+| `filings` · `standards` · `cve` | SEC 与国内上市公司公告、国家标准、NVD + CISA KEV + EPSS 漏洞 |
+
+> **建议指定 `--domain`（`-d`）。** 自动选域（`fa ask` 不加 `-d`）还在早期开发阶段，可能选错域。请自己指定域：`deepxiv fa domains` 列出全部，`deepxiv fa spec DOMAIN` 查看可用过滤条件。
+
+```bash
+# 找人：base 北京、上海的世界模型方向在校学生
+deepxiv fa search talent "world model" -F career_stage=student -F location=北京,上海 -k 20
+
+# DeepSeek-R1 被哪些院士 / Fellow 引用，正面评价都说了什么
+deepxiv fa read appraise arxiv:2501.12948 -l brief
+deepxiv fa read appraise arxiv:2501.12948 -p stance=positive -p org=CAS,CAE
+
+# 法规与判例：国内法规 + 美国最高法院判决
+deepxiv fa search law "个人信息保护" -k 5
+deepxiv fa search cases "qualified immunity police" -F country=us -F court_level=scotus -k 5
+
+# 临床试验、公司公告、漏洞
+deepxiv fa search trials "GLP-1 obesity" -F phase=PHASE3 -F overall_status=RECRUITING -k 5
+deepxiv fa search filings "CEO resignation" -F market=us -F "filed_year>=2023" -k 5
+deepxiv fa search cve "*" -F kev=true -F severity=critical,high --sort epss -k 10
+
+# 在一个域上要带引用的答案（扣 agentic 配额；SDK token 可试用 3 次）
+deepxiv fa ask "个人信息出境需要满足什么条件" -d law
+deepxiv fa ask "DeepSeek-R1 得到了哪些院士的正面评价" -d appraise -p paper=arxiv:2501.12948
+```
+
 DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费**。如需更大额度的 1stAuthor 相关服务，可以到 [1stauthor.com](https://1stauthor.com) 看看。
 
 > 1stAuthor 目前处于纯内测阶段，任何问题欢迎[提 issue](https://github.com/DeepXiv/deepxiv_sdk/issues)。

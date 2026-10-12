@@ -226,7 +226,7 @@ A cited answer. An agent searches and reads the domain for you. **Needs a regist
 
 | Option | |
 |---|---|
-| `-d`, `--domain` | Domain to ask. Without it, 1stAuthor picks one of the domains your key can use and stderr shows `🧭 routed to …`; a low-confidence pick adds a hint to pass `-d` |
+| `-d`, `--domain` | Domain to ask. **Recommended: auto-routing is still in early development.** Without it, 1stAuthor picks one of the domains your key can use and stderr shows `🧭 routed to …`; a low-confidence pick adds a hint to pass `-d` |
 | `-e`, `--effort` | `low` / `medium` / `high`; the domain's default if omitted. Higher effort reads more and costs more |
 | `-p`, `--param k=v` | A domain-specific ask parameter, repeatable. Values are sent as JSON types: `5` → number, `true` → boolean, `{…}` / `[…]` → object or array |
 | `--no-stream` | Wait for the whole answer instead of streaming it |
@@ -253,7 +253,7 @@ What you get:
 
 ```bash
 deepxiv fa ask "who are the leading researchers on self-supervised learning" --domain talent
-deepxiv fa ask "Which researchers at the University of Toronto work on deep learning?"         # auto-routed
+deepxiv fa ask "Which researchers at the University of Toronto work on deep learning?"         # auto-routed (early; prefer -d)
 deepxiv fa ask "中国个人信息保护法对个人信息出境有什么要求" -d law -p scope=law -e high
 deepxiv fa ask "how did fellows assess this paper" -d appraise -p paper=1706.03762
 deepxiv fa ask "KEV-listed RCEs from 2024 with CVSS 9+" -d cve -e low

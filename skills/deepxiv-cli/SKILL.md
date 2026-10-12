@@ -186,13 +186,13 @@ deepxiv fa ask "who works on self-supervised learning at Mila" -d talent
 deepxiv fa ask "DeepSeek-R1 得到了哪些院士的正面评价" -d appraise -p paper=arxiv:2501.12948
 deepxiv fa ask "个人信息出境需要满足什么条件" -d law -e medium
 deepxiv fa ask "recruiting phase 3 trials for pancreatic cancer" -d trials
-deepxiv fa ask "今天有哪些高危在野利用漏洞"            # no -d: routed; stderr says where
+deepxiv fa ask "今天有哪些高危在野利用漏洞" -d cve
 ```
 
 `-e low|medium|high`, `-p` domain params (`deepxiv fa spec D` lists them),
 `--no-stream`, `--json`, `-v` (tool calls on stderr). Each domain's ask answers
 from that domain only; to cover several, run one ask per domain (they can run
-in parallel) and merge. If stderr shows a low-confidence route, re-run with `-d`.
+in parallel) and merge. Always pass `-d`: auto-routing (no `-d`) is still early and can pick the wrong domain.
 Citations look like `[law:…]`, `[cve:CVE-…]`; keep them.
 
 ## 6. Domain recipes (verified)
