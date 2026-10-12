@@ -11,9 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/DeepXiv/deepxiv_sdk/blob/main/assets/deepxiv_promo.mp4"><img src="./assets/deepxiv_promo_poster.jpg" width="100%" alt="DeepXiv in one minute"></a>
-  <br>
-  <b><a href="https://github.com/DeepXiv/deepxiv_sdk/blob/main/assets/deepxiv_promo.mp4">▶ 观看一分钟视频</a></b> · <em>一分钟看懂：17 个数据域、渐进式阅读，以及四个真实的 Agent 案例：论文、人才、院士引用、法律</em>
+  <img src="./assets/deepxiv_cover.jpg" width="100%" alt="DeepXiv —— 致力于做最好的垂域 Agent 数据服务">
 </p>
 
 ---
