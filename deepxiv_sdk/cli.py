@@ -1978,7 +1978,8 @@ def _print_fa_sources(sources):
                 click.echo(f"  {i}. {s}", err=True)
                 continue
             ident = (s.get("id") or s.get("person_id") or s.get("law_key")
-                     or s.get("verdictno") or s.get("url") or s.get("uuid") or "?")
+                     or s.get("verdictno") or s.get("url") or s.get("uuid")
+                     or (f"appraise:{s['honoree_id']}" if s.get("honoree_id") else None) or "?")
             title = _fa_hit_title(s) or next(
                 (_fa_text(s.get(k)) for k in _FA_SUMMARY_KEYS if _fa_text(s.get(k))), "")
             if s.get("court"):

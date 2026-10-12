@@ -359,6 +359,11 @@ class TestFaCli:
         r = run("ask", "q", "-d", "cases", "--no-stream")
         assert "[（2018）辽1202刑初37号] 侵犯公民个人信息罪 · 铁岭市银州区人民法院 · 2018-02-05" in r.stderr
 
+    def test_ask_sources_fall_back_to_honoree_id(self, fake):
+        fake(FakeResponse(body={"answer": "a", "sources": {"people": [{"honoree_id": 2385, "name": "Bo Zhang"}]}}))
+        r = run("ask", "q", "-d", "appraise", "--no-stream")
+        assert "[appraise:2385] Bo Zhang" in r.stderr
+
     def test_ask_answer_reset_replaces_narration_when_redirected(self, fake):
         fake(FakeResponse(lines=ndjson(
             {"event": "start"},
