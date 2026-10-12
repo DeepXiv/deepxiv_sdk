@@ -111,6 +111,7 @@ Notes:
 - **id**: `law_id`, e.g. `刑法`
 - **search**: modes hybrid, dense, bm25; cost 2 (`--head`: 3)
 - **read levels** (`-l`): `brief` 1, `detail` 2, `full` 5; default `detail`
+- `full` (judgment text, also `--section` / `--characters`) needs the `cases:fulltext` grant on the key; without it the read returns 403 and costs nothing. `detail` carries every extracted field (claims, facts, reasoning, outcome, legal basis, amounts, parties, sentencing) and needs no grant.
 - **extras** (`-e`): `cases` 2
 - **facets**: `jurisdiction`, `law_type`, `status`, `domain`, `norm_type`
 - **ask params** (`-p`): `scope`, `jurisdiction`
@@ -137,7 +138,7 @@ Notes:
 
 ## cases
 
-Court judgments: 17.49M from China (2.65M criminal plus 14.83M civil / administrative / enforcement) and 3.44M US opinions (country=us, tier A). Brief-level hybrid retrieval with LLM-extracted structured fields; Chinese judgments are readable section by section, US full text waits on the PG store.
+Court judgments: 17.49M from China (2.65M criminal plus 14.83M civil / administrative / enforcement) and 3.44M US opinions (country=us, tier A). Brief-level hybrid retrieval with LLM-extracted structured fields; Chinese judgment text (read section by section) needs the `cases:fulltext` grant; US full text waits on the PG store.
 
 - **id**: `uuid`, e.g. `8a1c3791-0cce-4094-9b28-a9a600b657c7`
 - **search**: modes hybrid, dense, bm25; cost 2 (`--head`: 3)
