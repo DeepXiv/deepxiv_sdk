@@ -352,6 +352,13 @@ class TestFaCli:
         r = run("ask", "q", "-d", "talent", "--no-stream")
         assert "[3426] Yann LeCun" in r.stderr
 
+    def test_ask_case_sources_show_verdict_number_and_court(self, fake):
+        fake(FakeResponse(body={"answer": "a", "sources": {"cases": [{
+            "uuid": "1ba65c9f", "verdictno": "（2018）辽1202刑初37号", "cause": "侵犯公民个人信息罪",
+            "court": "铁岭市银州区人民法院", "judge_date": "2018-02-05"}]}}))
+        r = run("ask", "q", "-d", "cases", "--no-stream")
+        assert "[（2018）辽1202刑初37号] 侵犯公民个人信息罪 · 铁岭市银州区人民法院 · 2018-02-05" in r.stderr
+
     def test_ask_answer_reset_replaces_narration_when_redirected(self, fake):
         fake(FakeResponse(lines=ndjson(
             {"event": "start"},

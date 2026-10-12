@@ -1977,9 +1977,12 @@ def _print_fa_sources(sources):
             if not isinstance(s, dict):
                 click.echo(f"  {i}. {s}", err=True)
                 continue
-            ident = s.get("id") or s.get("person_id") or s.get("law_key") or s.get("url") or "?"
+            ident = (s.get("id") or s.get("person_id") or s.get("law_key")
+                     or s.get("verdictno") or s.get("url") or s.get("uuid") or "?")
             title = _fa_hit_title(s) or next(
                 (_fa_text(s.get(k)) for k in _FA_SUMMARY_KEYS if _fa_text(s.get(k))), "")
+            if s.get("court"):
+                title = " · ".join(x for x in (title, s["court"], s.get("judge_date")) if x)
             click.echo(f"  {i}. [{ident}] {title[:150]}", err=True)
             if s.get("url") and s.get("url") != ident:
                 click.echo(f"     {s['url']}", err=True)
