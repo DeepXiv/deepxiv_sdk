@@ -6,7 +6,7 @@ DeepXiv works closely with [1stAuthor](https://1stauthor.com) to serve data beyo
 
 DeepXiv itself stays focused on agentic data services for academic papers, and will remain free. If you need higher limits on the 1stAuthor domains, see [1stauthor.com](https://1stauthor.com).
 
-> **Beta.** `deepxiv fa` ships in `1.2.0b1`, source install only, and 1stAuthor is in closed beta. Questions or problems? [Open an issue](https://github.com/DeepXiv/deepxiv_sdk/issues).
+> `deepxiv fa` ships in deepxiv-sdk 1.2.0. 1stAuthor is in closed beta. Questions or problems? [Open an issue](https://github.com/DeepXiv/deepxiv_sdk/issues).
 
 This page is the complete reference for `deepxiv fa`: every command, option, parameter and error, plus the Python and HTTP APIs.
 
@@ -30,7 +30,7 @@ This page is the complete reference for `deepxiv fa`: every command, option, par
 ## 1. Install and token
 
 ```bash
-pip install git+https://github.com/DeepXiv/deepxiv_sdk.git    # 1.2.0b1
+pip install -U deepxiv-sdk    # 1.2.0+
 deepxiv fa --help
 ```
 

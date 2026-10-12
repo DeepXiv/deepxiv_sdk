@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
-  <img src="./assets/demo.gif" width="100%">
+  <a href="https://github.com/DeepXiv/deepxiv_sdk/blob/main/assets/deepxiv_promo.mp4"><img src="./assets/deepxiv_promo_poster.jpg" width="100%" alt="DeepXiv in one minute"></a>
   <br>
-  <em><code>deepxiv ask</code> — a question in, a cited answer streaming out</em>
+  <b><a href="https://github.com/DeepXiv/deepxiv_sdk/blob/main/assets/deepxiv_promo.mp4">▶ Watch the one-minute video</a></b> · <em>One minute: 17 data domains, progressive reading, and four real agent runs — papers, talent, fellow citations, law</em>
 </p>
 
 ---
@@ -52,11 +52,7 @@ DeepXiv itself stays focused on agentic data services for academic papers, and *
 pip install deepxiv-sdk
 ```
 
-> **Beta:** `deepxiv fa` (1stAuthor domains, including talent) isn't on PyPI yet. It ships in `1.2.0b1` from source:
->
-> ```bash
-> pip install git+https://github.com/DeepXiv/deepxiv_sdk.git
-> ```
+`deepxiv fa` (1stAuthor domains, including talent) needs 1.2.0 or later: `pip install -U deepxiv-sdk`.
 
 `deepxiv` auto-registers a token on first use. Agentic commands (`ask`, `fa ask`) need a registered key instead — get one at [data.rag.ac.cn/register](https://data.rag.ac.cn/register), then:
 
@@ -83,6 +79,12 @@ model), compared to EAGLE-3's 2.41× on the same benchmark [arXiv:2512.15176].
 📚 Sources (1 cited, 10 retrieved — use --all-sources for the rest):
   1. [2512.15176] DEER: Draft with Diffusion, Verify with Autoregressive Models
 ```
+
+<p align="center">
+  <img src="./assets/demo.gif" width="100%">
+  <br>
+  <em><code>deepxiv ask</code> — a question in, a cited answer streaming out</em>
+</p>
 
 The answer goes to stdout and sources to stderr, so `deepxiv ask "…" > answer.md` captures just the answer. Add `--effort high` when a question spans several papers.
 

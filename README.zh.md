@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
-  <img src="./assets/demo.gif" width="100%">
+  <a href="https://github.com/DeepXiv/deepxiv_sdk/blob/main/assets/deepxiv_promo.mp4"><img src="./assets/deepxiv_promo_poster.jpg" width="100%" alt="DeepXiv in one minute"></a>
   <br>
-  <em><code>deepxiv ask</code> —— 一个问题进去，一个带引用的答案流式出来</em>
+  <b><a href="https://github.com/DeepXiv/deepxiv_sdk/blob/main/assets/deepxiv_promo.mp4">▶ 观看一分钟视频</a></b> · <em>一分钟看懂：17 个数据域、渐进式阅读，以及四个真实的 Agent 案例：论文、人才、院士引用、法律</em>
 </p>
 
 ---
@@ -52,11 +52,7 @@ DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费*
 pip install deepxiv-sdk
 ```
 
-> **Beta：** `deepxiv fa`（1stAuthor 垂域，含 talent）还没上 PyPI。功能在 `1.2.0b1` 里，暂时用源码安装：
->
-> ```bash
-> pip install git+https://github.com/DeepXiv/deepxiv_sdk.git
-> ```
+`deepxiv fa`（1stAuthor 垂域，含 talent）需要 1.2.0 及以上：`pip install -U deepxiv-sdk`。
 
 `deepxiv` 首次使用会自动注册一个 token。agentic 命令（`ask`、`fa ask`）需要注册过的 key —— 在 [data.rag.ac.cn/register](https://data.rag.ac.cn/register) 领一个，然后：
 
@@ -83,6 +79,12 @@ model), compared to EAGLE-3's 2.41× on the same benchmark [arXiv:2512.15176].
 📚 Sources (1 cited, 10 retrieved — use --all-sources for the rest):
   1. [2512.15176] DEER: Draft with Diffusion, Verify with Autoregressive Models
 ```
+
+<p align="center">
+  <img src="./assets/demo.gif" width="100%">
+  <br>
+  <em><code>deepxiv ask</code> —— 一个问题进去，一个带引用的答案流式出来</em>
+</p>
 
 答案走 stdout，来源走 stderr，所以 `deepxiv ask "…" > answer.md` 只会捕获答案本身。问题横跨多篇论文时加 `--effort high`。
 

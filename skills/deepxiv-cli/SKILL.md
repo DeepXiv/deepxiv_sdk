@@ -216,7 +216,7 @@ deepxiv token
 
 ### 5. Researchers, Law, Trials and More (`deepxiv fa`) — beta
 
-**Availability**: ships in `1.2.0b1`, source install only (`pip install git+https://github.com/DeepXiv/deepxiv_sdk.git`).
+**Availability**: deepxiv-sdk 1.2.0+ (`pip install -U deepxiv-sdk`).
 
 **When to use**: The answer lives outside papers — people (`talent`), statutes
 (`law`, `us_law`), court judgments (`cases`), clinical trials, drugs, grants,

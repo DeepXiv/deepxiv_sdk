@@ -6,7 +6,7 @@ DeepXiv 与 [1stAuthor](https://1stauthor.com) 深度合作，提供 arXiv 之�
 
 DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费**。如需更大额度的 1stAuthor 相关服务，可以到 [1stauthor.com](https://1stauthor.com) 看看。
 
-> **Beta。** `deepxiv fa` 在 `1.2.0b1` 里，暂时仅源码安装；1stAuthor 目前处于纯内测阶段。任何问题欢迎[提 issue](https://github.com/DeepXiv/deepxiv_sdk/issues)。
+> `deepxiv fa` 随 deepxiv-sdk 1.2.0 发布；1stAuthor 目前处于纯内测阶段。任何问题欢迎[提 issue](https://github.com/DeepXiv/deepxiv_sdk/issues)。
 
 本文是 `deepxiv fa` 的完整参考：每个命令、选项、参数和错误，以及 Python 和 HTTP 接口。
 
@@ -30,7 +30,7 @@ DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费*
 ## 1. 安装与 token
 
 ```bash
-pip install git+https://github.com/DeepXiv/deepxiv_sdk.git    # 1.2.0b1
+pip install -U deepxiv-sdk    # 1.2.0+
 deepxiv fa --help
 ```
 
