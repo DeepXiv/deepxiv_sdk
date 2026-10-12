@@ -29,13 +29,22 @@ Four things it does:
 | **Ask the literature** | `deepxiv ask` | A question in, an answer out, cited with real arXiv IDs |
 | **Ask the web** | `deepxiv ask --web` | Same, over Google plus cached page bodies |
 | **Read a paper in layers** | `deepxiv search` / `paper` | Search, judge, then read only the section you need |
-| **Find the people** | `deepxiv talent` | Who works on a topic, where, and what their record is |
+| **Find the people** | `deepxiv fa … talent` | Who works on a topic, where, and what their record is |
+| **Go beyond papers** | `deepxiv fa` | Statutes, judgments, trials, drugs, grants, filings, standards, CVEs — via 1stAuthor |
 
 ## What problem it solves
 
 An agent researching a topic has bad options. Search APIs return ten blue links and abstracts — enough to name a paper, never enough to answer "what speedup does it report on HumanEval". PDFs answer that, but cost 50k tokens each and arrive as a wall of text with no structure to navigate.
 
-DeepXiv removes the tradeoff. Papers are pre-parsed, so an agent can spend 300 tokens on a TLDR to decide whether to spend 5k on the Methods section. Questions that need evidence go to the agentic endpoint, which reads source text and hands back an answer with citations you can check. And because knowing *who* does the work is half of research, the same interface searches scholars.
+DeepXiv removes the tradeoff. Papers are pre-parsed, so an agent can spend 300 tokens on a TLDR to decide whether to spend 5k on the Methods section. Questions that need evidence go to the agentic endpoint, which reads source text and hands back an answer with citations you can check. And because knowing *who* does the work is half of research, the same token searches scholars — plus law, clinical trials, drugs, grants and more through [1stAuthor](https://1stauthor.com)'s domains.
+
+## DeepXiv × 1stAuthor
+
+DeepXiv works closely with [1stAuthor](https://1stauthor.com) to serve data beyond papers: researchers, statutes, court judgments, clinical trials, drugs, grants, filings, standards and CVEs, all reached through `deepxiv fa` with the same token. **→ [The `deepxiv fa` guide](FA.md)**
+
+DeepXiv itself stays focused on agentic data services for academic papers, and **will remain free**. If you need higher limits on the 1stAuthor domains, see [1stauthor.com](https://1stauthor.com).
+
+> 1stAuthor is in closed beta. Questions or problems? [Open an issue](https://github.com/DeepXiv/deepxiv_sdk/issues).
 
 ## Install
 
@@ -43,13 +52,13 @@ DeepXiv removes the tradeoff. Papers are pre-parsed, so an agent can spend 300 t
 pip install deepxiv-sdk
 ```
 
-> **Beta:** `deepxiv talent` isn't on PyPI yet. It ships in `1.1.0b1` from source while the scholar index is still being built out:
+> **Beta:** `deepxiv fa` (1stAuthor domains, including talent) isn't on PyPI yet. It ships in `1.2.0b1` from source:
 >
 > ```bash
 > pip install git+https://github.com/DeepXiv/deepxiv_sdk.git
 > ```
 
-`deepxiv` auto-registers a token on first use. Agentic commands (`ask`, `talent`) need a registered key instead — get one at [data.rag.ac.cn/register](https://data.rag.ac.cn/register), then:
+`deepxiv` auto-registers a token on first use. Agentic commands (`ask`, `fa ask`) need a registered key instead — get one at [data.rag.ac.cn/register](https://data.rag.ac.cn/register), then:
 
 ```bash
 deepxiv config --token YOUR_REGISTERED_KEY
@@ -98,12 +107,21 @@ Filters combine with `AND` — `--authors`, `--orgs`, `--categories`, `--venue`/
 **4. Find the people behind it.** A method is worth more when you know whose lab it comes from and what else they've built.
 
 ```bash
-deepxiv talent search "researchers working on speculative decoding" --semantic --limit 5
-deepxiv talent survey 257                    # full profile: bio, education, work, open source, metrics
-deepxiv talent survey 257 --format markdown  # the generated report
+deepxiv fa search talent "speculative decoding" --top-k 5    # by topic
+deepxiv fa search talent "Geoffrey Hinton"                    # or by name
+deepxiv fa search talent "deep learning" -F "org=University of Toronto" -F "h_index>=50"
+deepxiv fa read talent 15023                                  # profile: bio, education, career, top papers, metrics
+deepxiv fa read talent 15023 --level full                     # the full researched profile (markdown)
 ```
 
-Semantic mode takes a sentence; drop `--semantic` to match names and affiliations directly. IDs from `search` feed `survey`.
+Names (Chinese, pinyin, English) and topics both work. IDs from `search` feed `read`; `deepxiv fa spec talent` lists the filters and what each read level costs. `deepxiv talent search|survey` still work as deprecated aliases, but IDs from the old index don't carry over.
+
+The same verbs cover 1stAuthor's other domains (`deepxiv fa domains` lists them). **Full guide: [FA.md](FA.md).**
+
+```bash
+deepxiv fa search law "个人信息保护" --top-k 5
+deepxiv fa ask "个人信息出境需要满足什么条件" --domain law   # registered key, agentic quota
+```
 
 **5. Step off arXiv when the question isn't academic.** Licensing, pricing, who shipped what last week — same command, different backend.
 
@@ -122,12 +140,13 @@ from deepxiv_sdk import Reader
 reader = Reader(token="YOUR_REGISTERED_KEY")   # Reader takes the token explicitly
 answer = reader.agent_search("what speedup does DEER report on HumanEval")["answer"]
 method = reader.section("2512.15176", "Method")
-people = reader.talent_search("speculative decoding", semantic=True, limit=5)
+people = reader.fa().search("talent", "speculative decoding", top_k=5)
 ```
 
 ## Documentation
 
 - **[USAGE.md](USAGE.md)** — full CLI reference, the Python API, streaming, error handling, batching, and the built-in research agent. ([中文](USAGE.zh.md))
+- **[FA.md](FA.md)**: `deepxiv fa`, the 1stAuthor domains (talent, law, cases, trials, drugs, grants, filings, standards, CVEs, …): commands, filters, prices, errors, Python. ([中文](FA.zh.md))
 - **[skills/deepxiv-cli/SKILL.md](skills/deepxiv-cli/SKILL.md)** — drop-in operating instructions for coding agents. Two worked workflows also ship as skills: [trending digest](skills/deepxiv-trending-digest/SKILL.md), [baseline table](skills/deepxiv-baseline-table/SKILL.md).
 - **[examples/](examples/)** — runnable scripts for each entry point.
 

@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deepxiv-sdk",
-    version="1.1.0b1",
+    version="1.2.0b1",
     author="Hongjin Qian",
     description="Agentic search over arXiv and the web, returning answers with real citations",
     long_description=long_description,
