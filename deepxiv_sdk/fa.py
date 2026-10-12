@@ -55,7 +55,8 @@ class FAError(APIError):
     @property
     def needs_registered_key(self) -> bool:
         """True when the call is reserved for registered keys (SDK tokens get 403)."""
-        return self.status == 403 and "registered account key" in self.message.lower()
+        msg = self.message.lower()
+        return self.status == 403 and ("registered account key" in msg or "trial" in msg)
 
     def __str__(self) -> str:
         head = f"HTTP {self.status}" if self.status else "error"
@@ -277,8 +278,9 @@ class FAClient:
 
     Billing: search/read/facets/resolve draw on the general daily limit at
     1stAuthor's prices; ``domains``, ``spec`` and ``whoami`` are free. ``ask``
-    draws on the agentic quota and needs a registered account key — the
-    token the SDK auto-registers gets a 403 (:attr:`FAError.needs_registered_key`).
+    draws on the agentic quota: a registered account key (300/day), or 3
+    lifetime trial asks on the token the SDK auto-registers; after that it
+    gets a 403 (:attr:`FAError.needs_registered_key`).
 
     Example:
         >>> fa = FAClient(token="your_deepxiv_token")

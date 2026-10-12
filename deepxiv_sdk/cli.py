@@ -649,7 +649,15 @@ def _print_ask_quota(quota, verbose=False):
     if remaining is None:
         return
     tier = quota.get("tier", "?")
-    if remaining <= 5:
+    if tier == "trial":
+        # SDK token: a lifetime trial (the Daily-Limit header carries the lifetime cap).
+        limit = quota.get("daily_limit")
+        click.echo(
+            f"\n🎟️  试用剩余 {remaining}/{limit} 次 · Free trial: {remaining} of {limit} asks left on this "
+            f"SDK token (lifetime). Register for 300/day: https://data.rag.ac.cn/register",
+            err=True,
+        )
+    elif remaining <= 5:
         click.echo(
             f"\n⚠️  {remaining} agentic call(s) left today on the '{tier}' tier. "
             "Upgrade at https://data.rag.ac.cn/register",
@@ -1563,7 +1571,8 @@ def fa():
     Runs through data.rag.ac.cn/fa with your deepxiv token. search, read,
     facets and resolve spend your general daily limit at 1stAuthor's prices
     (`deepxiv fa spec <domain>` lists them); domains, spec and whoami are free.
-    ask spends the agentic quota and needs a registered account key.
+    ask spends the agentic quota: a registered account key (300/day), or
+    3 lifetime trial asks on the auto-registered SDK token.
 
     Data goes to stdout; quota, routing and sources go to stderr.
 
@@ -1599,10 +1608,9 @@ def _exit_on_fa_error(error):
     """Explain an FAError on stderr, then exit non-zero."""
     status = error.status
     if error.needs_registered_key:
-        click.echo("\n❌ `deepxiv fa ask` 需要注册账号的 key，自动申请的 SDK token 不能用。 / "
-                   "`deepxiv fa ask` needs a registered account key; the auto-registered SDK token is not eligible.\n",
-                   err=True)
-        click.echo(f"请到 {FA_REGISTER_URL} 注册，再用 `deepxiv config` 填入新 key。 / "
+        # The server's detail says why: trial used up, today's trials all taken, or key not eligible.
+        click.echo(f"\n❌ {error.message}\n", err=True)
+        click.echo(f"请到 {FA_REGISTER_URL} 注册（每天 300 次 ask），再用 `deepxiv config` 填入新 key。 / "
                    f"Register at {FA_REGISTER_URL}, then save the key with `deepxiv config`.\n", err=True)
         click.echo("search / read / facets / resolve 仍可用当前 token。 / "
                    "search, read, facets and resolve still work with your current token.\n", err=True)
@@ -2007,8 +2015,9 @@ def _print_fa_sources(sources):
 def fa_ask(query, domain, effort, no_stream, no_sources, params, verbose, token, json_output):
     """Ask a question over a 1stAuthor domain and get a cited answer.
 
-    Needs a registered account key (https://data.rag.ac.cn/register) and
-    spends the agentic quota shared with `deepxiv ask`. Without --domain,
+    Spends the agentic quota shared with `deepxiv ask` (300/day on a
+    registered key from https://data.rag.ac.cn/register). The auto-registered
+    SDK token gets 3 lifetime trial asks. Without --domain,
     1stAuthor picks the domain and says which one on stderr.
 
     The answer goes to stdout; route, sources and quota go to stderr.
@@ -2128,7 +2137,13 @@ def fa_whoami(token, json_output):
     if quota:
         click.echo(f"general: {quota.get('used')}/{quota.get('daily_limit')} used, {quota.get('remaining')} left")
     agent_quota = result.get("agent")
-    if agent_quota:
+    if agent_quota and agent_quota.get("tier") == "trial":
+        click.echo(f"agentic: free trial, {agent_quota.get('used')}/{agent_quota.get('trial_limit')} used, "
+                   f"{agent_quota.get('remaining')} left (lifetime, this SDK token) — "
+                   f"register for 300/day at {FA_REGISTER_URL}")
+        if result.get("agent_note"):
+            click.echo(f"         {result['agent_note']}")
+    elif agent_quota:
         click.echo(f"agentic: tier {agent_quota.get('tier')}, {agent_quota.get('used_today')}/"
                    f"{agent_quota.get('daily_limit')} used, {agent_quota.get('remaining_today')} left")
     else:

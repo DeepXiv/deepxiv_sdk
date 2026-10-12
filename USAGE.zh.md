@@ -169,10 +169,10 @@ deepxiv search "transformer model" --use-fine-rerank
 deepxiv fa domains                                    # 有哪些域（免费）
 deepxiv fa search talent "Geoffrey Hinton"            # 在某个域里检索
 deepxiv fa read talent 15023 --level brief            # 读检索到的结果
-deepxiv fa ask "自监督学习领域最有影响力的研究者有哪些" --domain talent   # 需注册 key
+deepxiv fa ask "自监督学习领域最有影响力的研究者有哪些" --domain talent   # 需注册 key（SDK token 可试用 3 次）
 ```
 
-`search`、`read`、`facets`、`resolve` 任何 token 都能用，扣通用 daily limit；`fa ask` 需要注册 key。`deepxiv talent search|survey` 已是弃用别名。过滤语法、读取级别、价格、错误处理、Python 用法和迁移说明都在 [FA.zh.md](FA.zh.md)。
+`search`、`read`、`facets`、`resolve` 任何 token 都能用，扣通用 daily limit；`fa ask` 需要注册 key，自动注册的 token 可终身试用 3 次。`deepxiv talent search|survey` 已是弃用别名。过滤语法、读取级别、价格、错误处理、Python 用法和迁移说明都在 [FA.zh.md](FA.zh.md)。
 
 ## 其他数据源
 

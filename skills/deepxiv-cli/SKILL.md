@@ -22,10 +22,12 @@ deepxiv token                       # shows the active token
 
 - **Token**: the first call auto-registers a free token and saves it to `~/.env`
   (`DEEPXIV_TOKEN`). Every command also takes `-t TOKEN`.
-- **Registered key**: `deepxiv ask` and `deepxiv fa ask` (the agentic calls)
-  return **403** on the auto-registered token. Tell the user to register at
-  https://data.rag.ac.cn/register and run `deepxiv config --token THEIR_KEY`.
-  Do not retry a 403. Search and read commands work on either token.
+- **Registered key**: the agentic calls need one (300/day free). On the
+  auto-registered token, `deepxiv ask` returns **403**; `deepxiv fa ask` works
+  **3 times in total** (stderr: `🎟️ 试用剩余 N/3 次 · Free trial: N of 3 asks left`),
+  then returns 403. Tell the user to register at https://data.rag.ac.cn/register
+  and run `deepxiv config --token THEIR_KEY`. Don't spend the trial on throwaway
+  questions, and don't retry a 403. Search and read work on either token.
 - **No other keys**: 1stAuthor domains go through deepxiv with the same token.
 
 ## 2. Which command
@@ -124,7 +126,7 @@ deepxiv fa spec talent                # filters, levels, extras, prices, samples
 deepxiv fa search talent "Geoffrey Hinton" -k 3      # → ids
 deepxiv fa read talent 15023 -l brief                # cheapest card
 deepxiv fa read talent 15023                         # default level (detail)
-deepxiv fa ask "…" -d talent                         # cited answer (registered key)
+deepxiv fa ask "…" -d talent                         # cited answer (registered key, or 3 trial asks)
 ```
 
 **Always run `deepxiv fa spec DOMAIN` before filtering** — field names, allowed
@@ -177,7 +179,7 @@ deepxiv fa facets talent career_stage          # value → count, for -F
 deepxiv fa resolve "Geoffrey Hinton" "Yann LeCun"   # names → talent ids, batch
 ```
 
-### ask (registered key)
+### ask (registered key; SDK token: 3 lifetime trials)
 
 ```bash
 deepxiv fa ask "who works on self-supervised learning at Mila" -d talent
@@ -274,7 +276,7 @@ citation. Answers are research aids, not legal advice; say so.
 
 | Symptom | Do |
 |---|---|
-| `403 … registered account key` on `ask` / `fa ask` | Ask the user to register (https://data.rag.ac.cn/register) and `deepxiv config --token KEY`; meanwhile use search + read |
+| `403` on `ask` / `fa ask` (no key, or `fa ask` trial used up / today's trials all taken) | Ask the user to register (https://data.rag.ac.cn/register) and `deepxiv config --token KEY`; meanwhile use search + read |
 | Exit 2, `unknown filter` / bad op | `deepxiv fa spec DOMAIN`; use the listed field and operator |
 | `400 … query must be 1–1000 characters` | Use `"*"` for filter-only searches |
 | No hits | Loosen filters, check values with `fa facets`, try another `--mode` |

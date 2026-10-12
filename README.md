@@ -52,7 +52,7 @@ pip install deepxiv-sdk
 
 `deepxiv fa` (1stAuthor domains, including talent) needs 1.2.0 or later: `pip install -U deepxiv-sdk`.
 
-`deepxiv` auto-registers a token on first use. Agentic commands (`ask`, `fa ask`) need a registered key instead — get one at [data.rag.ac.cn/register](https://data.rag.ac.cn/register), then:
+`deepxiv` auto-registers a token on first use. Agentic commands (`ask`, `fa ask`) need a registered key (300 calls/day free); the auto-registered token gets 3 lifetime trial `fa ask` calls. Get a key at [data.rag.ac.cn/register](https://data.rag.ac.cn/register), then:
 
 ```bash
 deepxiv config --token YOUR_REGISTERED_KEY
@@ -120,7 +120,7 @@ The same verbs cover 1stAuthor's other domains (`deepxiv fa domains` lists them)
 
 ```bash
 deepxiv fa search law "个人信息保护" --top-k 5
-deepxiv fa ask "个人信息出境需要满足什么条件" --domain law   # registered key, agentic quota
+deepxiv fa ask "个人信息出境需要满足什么条件" --domain law   # agentic quota; SDK token: 3 trial asks
 ```
 
 **5. Step off arXiv when the question isn't academic.** Licensing, pricing, who shipped what last week — same command, different backend.

@@ -169,10 +169,10 @@ Returns `{status, total_count, result: [...]}`. Each result carries `arxiv_id`, 
 deepxiv fa domains                                    # what's there (free)
 deepxiv fa search talent "Geoffrey Hinton"            # search a domain
 deepxiv fa read talent 15023 --level brief            # read what you found
-deepxiv fa ask "who are the leading researchers on self-supervised learning" --domain talent   # registered key
+deepxiv fa ask "who are the leading researchers on self-supervised learning" --domain talent   # registered key (SDK token: 3 trial asks)
 ```
 
-`search`, `read`, `facets` and `resolve` work with any token and spend the general daily limit. `fa ask` needs a registered key. `deepxiv talent search|survey` are deprecated aliases. Filters, read levels, prices, errors, the Python API and migration notes are all in [FA.md](FA.md).
+`search`, `read`, `facets` and `resolve` work with any token and spend the general daily limit. `fa ask` needs a registered key; the auto-registered token gets 3 lifetime trial asks. `deepxiv talent search|survey` are deprecated aliases. Filters, read levels, prices, errors, the Python API and migration notes are all in [FA.md](FA.md).
 
 ## Other sources
 
