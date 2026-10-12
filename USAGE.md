@@ -11,7 +11,6 @@ The complete reference for both surfaces. For the short version see [README.md](
 ```bash
 pip install deepxiv-sdk              # Reader + CLI
 pip install "deepxiv-sdk[all]"       # + built-in research agent (needs your own LLM key)
-pip install git+https://github.com/DeepXiv/deepxiv_sdk.git   # 1.2.0b1, adds `deepxiv fa` (beta)
 ```
 
 ```python
@@ -162,7 +161,7 @@ Returns `{status, total_count, result: [...]}`. Each result carries `arxiv_id`, 
 
 ## CLI: fa — 1stAuthor domains (talent, law, trials, ...)
 
-> **Beta.** Ships in `1.2.0b1`, source install only. **Full guide: [FA.md](FA.md).**
+> Since 1.2.0. **Full guide: [FA.md](FA.md).**
 
 `deepxiv fa` reaches [1stAuthor](https://1stauthor.com)'s domains (researchers, statutes, judgments, clinical trials, drugs, grants, filings, standards, CVEs, the Federal Register) with your deepxiv token.
 

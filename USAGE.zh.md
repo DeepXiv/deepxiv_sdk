@@ -11,7 +11,6 @@ CLI 与 Python 两个入口的完整参考。精简版见 [README.zh.md](README.
 ```bash
 pip install deepxiv-sdk              # Reader + CLI
 pip install "deepxiv-sdk[all]"       # + 内置 research agent（需要你自己的 LLM key）
-pip install git+https://github.com/DeepXiv/deepxiv_sdk.git   # 1.2.0b1，含 `deepxiv fa`（beta）
 ```
 
 ```python
@@ -162,7 +161,7 @@ deepxiv search "transformer model" --use-fine-rerank
 
 ## CLI：fa —— 1stAuthor 垂域（talent、law、trials……）
 
-> **Beta。** 功能在 `1.2.0b1`，仅源码安装。**完整文档：[FA.zh.md](FA.zh.md)。**
+> 1.2.0 起提供。**完整文档：[FA.zh.md](FA.zh.md)。**
 
 `deepxiv fa` 用你的 deepxiv token 访问 [1stAuthor](https://1stauthor.com) 的垂域：学者、法规、裁判文书、临床试验、药品、基金、公告、标准、CVE、美国联邦公报。
 
