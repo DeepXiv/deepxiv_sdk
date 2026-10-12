@@ -226,7 +226,7 @@ deepxiv fa ask QUESTION [-d DOMAIN] [-e EFFORT] [-p k=v]... [--no-stream] [--no-
 
 | 选项 | |
 |---|---|
-| `-d`, `--domain` | 指定域；不指定时由 1stAuthor 在你的 key 可用的域里选一个，stderr 会打出 `🧭 routed to …`；把握不大时会提示你用 `-d` 指定 |
+| `-d`, `--domain` | 指定域。**建议指定：自动选域还在早期开发阶段。** 不指定时由 1stAuthor 在你的 key 可用的域里选一个，stderr 会打出 `🧭 routed to …`；把握不大时会提示你用 `-d` 指定 |
 | `-e`, `--effort` | `low` / `medium` / `high`；不指定则用域的默认值。越高读得越多、越贵 |
 | `-p`, `--param k=v` | 域专属的 ask 参数，可重复。值按 JSON 类型发送：`5` → 数字，`true` → 布尔，`{…}` / `[…]` → 对象或数组 |
 | `--no-stream` | 等完整答案，不流式输出 |
@@ -253,7 +253,7 @@ deepxiv fa ask QUESTION [-d DOMAIN] [-e EFFORT] [-p k=v]... [--no-stream] [--no-
 
 ```bash
 deepxiv fa ask "自监督学习领域最有影响力的研究者有哪些" --domain talent
-deepxiv fa ask "多伦多大学有哪些做深度学习的研究者"                         # 自动选域
+deepxiv fa ask "多伦多大学有哪些做深度学习的研究者"                         # 自动选域（早期，建议加 -d）
 deepxiv fa ask "中国个人信息保护法对个人信息出境有什么要求" -d law -p scope=law -e high
 deepxiv fa ask "院士们怎么评价这篇论文" -d appraise -p paper=1706.03762
 deepxiv fa ask "2024 年被 CISA 列入在野利用、CVSS 9 分以上的 RCE 有哪些" -d cve -e low
