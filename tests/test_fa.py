@@ -352,6 +352,45 @@ class TestFaCli:
         r = run("ask", "q", "-d", "talent", "--no-stream")
         assert "[3426] Yann LeCun" in r.stderr
 
+    def test_ask_trial_shows_remaining(self, fake):
+        fake(FakeResponse(
+            body={"answer": "a", "sources": {}},
+            headers={"X-DeepXiv-Agent-Tier": "trial", "X-DeepXiv-Agent-Daily-Limit": "3",
+                     "X-DeepXiv-Agent-Used": "1", "X-DeepXiv-Agent-Remaining": "2"},
+        ))
+        r = run("ask", "q", "-d", "law", "--no-stream")
+        assert r.exit_code == 0, r.output
+        assert "试用剩余 2/3 次" in r.stderr and "2 of 3 asks left" in r.stderr
+
+    def test_ask_trial_used_up_shows_server_detail(self, fake):
+        detail = ("Free 1stAuthor ask trial used up (3/3) for this SDK token. Ask requires a registered "
+                  "account key (300 asks/day free). Register at https://data.rag.ac.cn/register")
+        fake(FakeResponse(status=403, body={"detail": detail}))
+        r = run("ask", "q", "-d", "law", "--no-stream")
+        assert r.exit_code == 1
+        assert "trial used up (3/3)" in r.stderr
+        assert "not eligible" not in r.stderr
+
+    def test_ask_trials_all_taken_counts_as_needing_a_key(self, fake):
+        fake(FakeResponse(status=403, body={"detail": "Today's free 1stAuthor ask trials are all taken. Register ..."}))
+        r = run("ask", "q", "-d", "law", "--no-stream")
+        assert r.exit_code == 1
+        assert "all taken" in r.stderr and "data.rag.ac.cn/register" in r.stderr
+
+    def test_whoami_trial(self, fake):
+        fake(FakeResponse(body={"source": "sdk", "name": "sdk-1", "quota": {"used": 1, "daily_limit": 1000, "remaining": 999},
+                                "agent": {"tier": "trial", "trial_limit": 3, "used": 1, "remaining": 2},
+                                "agent_note": "3 free asks per SDK token"}))
+        r = run("whoami")
+        assert r.exit_code == 0, r.output
+        assert "free trial, 1/3 used, 2 left" in r.stdout
+
+    def test_search_sort_is_sent(self, fake):
+        s = fake(FakeResponse(body=SEARCH_BODY))
+        r = run("search", "cve", "", "--sort", "epss")
+        assert r.exit_code == 0, r.output
+        assert s.calls[0]["json"]["sort"] == "epss"
+
     def test_ask_case_sources_show_verdict_number_and_court(self, fake):
         fake(FakeResponse(body={"answer": "a", "sources": {"cases": [{
             "uuid": "1ba65c9f", "verdictno": "（2018）辽1202刑初37号", "cause": "侵犯公民个人信息罪",

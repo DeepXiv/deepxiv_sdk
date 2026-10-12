@@ -45,7 +45,7 @@ There are two kinds of token:
 
 | | Can use | How to get |
 |---|---|---|
-| **Auto-registered SDK token** | everything except `fa ask` | Created automatically on first use |
+| **Auto-registered SDK token** | everything; `fa ask` only as a 3-call lifetime trial | Created automatically on first use |
 | **Registered account key** | everything, including `fa ask` | [data.rag.ac.cn/register](https://data.rag.ac.cn/register), then `deepxiv config --token YOUR_KEY` |
 
 `deepxiv fa whoami` tells you which one you're using.
@@ -222,7 +222,7 @@ deepxiv fa resolve "Geoffrey Hinton" "Yann LeCun" "Yoshua Bengio"
 deepxiv fa ask QUESTION [-d DOMAIN] [-e EFFORT] [-p k=v]... [--no-stream] [--no-sources] [-v] [--json]
 ```
 
-A cited answer. An agent searches and reads the domain for you. **Needs a registered key.**
+A cited answer. An agent searches and reads the domain for you. **Needs a registered key** (300/day free). The auto-registered SDK token gets **3 lifetime trial asks**; stderr shows `🎟️ 试用剩余 2/3 次 · Free trial: 2 of 3 asks left`, and once they are used up the call fails with 403 and the server's message.
 
 | Option | |
 |---|---|
@@ -267,7 +267,7 @@ deepxiv fa ask "Who is Yann LeCun?" -d talent --json > answer.json
 deepxiv fa whoami [--json]
 ```
 
-**Free.** Shows the token type and name, today's general quota (used / limit / left), and either the agentic quota (tier / used / limit / left) or why `ask` isn't available.
+**Free.** Shows the token type and name, today's general quota (used / limit / left), and the agentic quota: tier / used / limit / left for a registered key, or the trial (used / 3 / left, lifetime) for an SDK token.
 
 ## 5. Filters
 
@@ -334,7 +334,7 @@ deepxiv fa search talent "Geoffrey Hinton" --json | jq '.hits[0].id'
 | `read` | general daily limit | by level / extra / format; `spec` lists every price (talent: brief 1, detail 3, full 10, extras 1–20) |
 | `facets` | general daily limit | 1 |
 | `resolve` | general daily limit | 2 |
-| `ask` | agentic quota (shared with `deepxiv ask`) | 1 call, whatever the domain or effort; **registered key only** |
+| `ask` | agentic quota (shared with `deepxiv ask`) | 1 call, whatever the domain or effort; registered key (300/day), or 3 lifetime trial calls on an SDK token |
 
 - The general daily limit is 1,000 for an auto-registered token and 10,000 for a registered key. Registered keys also get 300 agentic calls/day free. See [USAGE.md § Tokens and limits](USAGE.md#tokens-and-limits).
 - After each paid call, the CLI prints `💳 cost N · remaining/limit left today` to stderr, and warns when 20 or fewer remain.
@@ -349,7 +349,7 @@ The CLI explains each of these on stderr and exits 1:
 
 | What you see | Why | What to do |
 |---|---|---|
-| `fa ask` needs a registered account key | 403: SDK token used for `ask` | Register, then `deepxiv config --token …` |
+| `fa ask` 403 with the server's message (trial used up, today's trials all taken, or key not eligible) | The SDK token's 3 trial asks are spent, or the site-wide daily trial pool is full | Register, then `deepxiv config --token …` |
 | Authentication failed (401) | Token missing or invalid | `deepxiv token`, or set `DEEPXIV_TOKEN` |
 | Daily usage limit reached | 429: general daily limit used up | Wait for tomorrow or register for a higher limit |
 | Too many concurrent requests, retry in Ns | 429 with `Retry-After`: more than 4 `ask` calls at once | Wait as told |
@@ -457,7 +457,7 @@ except FAError as e:
     e.details               # e.g. {"extras": [...]} or {"allowed": [...]}
     e.retry_after           # seconds, from Retry-After
     e.request_id            # for support
-    e.needs_registered_key  # True for the 403 an SDK token gets from ask
+    e.needs_registered_key  # True for the 403 an SDK token gets from ask once its trial is spent
 ```
 
 `FAError` is a subclass of `deepxiv_sdk.APIError`.

@@ -52,7 +52,7 @@ pip install deepxiv-sdk
 
 `deepxiv fa`（1stAuthor 垂域，含 talent）需要 1.2.0 及以上：`pip install -U deepxiv-sdk`。
 
-`deepxiv` 首次使用会自动注册一个 token。agentic 命令（`ask`、`fa ask`）需要注册过的 key —— 在 [data.rag.ac.cn/register](https://data.rag.ac.cn/register) 领一个，然后：
+`deepxiv` 首次使用会自动注册一个 token。agentic 命令（`ask`、`fa ask`）需要注册过的 key（每天免费 300 次）；自动注册的 token 可以试用 3 次 `fa ask`（终身）。在 [data.rag.ac.cn/register](https://data.rag.ac.cn/register) 领一个 key，然后：
 
 ```bash
 deepxiv config --token YOUR_REGISTERED_KEY
@@ -120,7 +120,7 @@ deepxiv fa read talent 15023 --level full                     # 完整调查档�
 
 ```bash
 deepxiv fa search law "个人信息保护" --top-k 5
-deepxiv fa ask "个人信息出境需要满足什么条件" --domain law   # 需注册 key，扣 agentic 配额
+deepxiv fa ask "个人信息出境需要满足什么条件" --domain law   # 扣 agentic 配额；SDK token 可试用 3 次
 ```
 
 **5. 问题不在学术圈里时，换个后端。** 授权、定价、上周谁发了什么 —— 同一个命令。

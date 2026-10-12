@@ -1,529 +1,304 @@
 ---
 name: deepxiv-cli
-version: "1.0.0"
-description: Access academic papers (arXiv, PMC, bioRxiv, medRxiv) via CLI with semantic search and intelligent content extraction
-frameworks: ["codex", "langchain", "claude-code", "custom-agents"]
-use_cases: ["literature-search", "paper-analysis", "knowledge-synthesis", "research-assistant"]
+version: "1.2.1"
+description: Use the deepxiv CLI to search and read academic papers (arXiv, PMC, bioRxiv, medRxiv) section by section, get cited answers from papers or the web, and query 1stAuthor's domains with the same token — AI researchers and their profiles, which academicians and fellows cited a paper, Chinese and US statutes, court judgments, clinical trials, drug labels, research grants, company filings, Chinese national standards, CVEs and the US Federal Register. Use when a task needs papers, people, legal or regulatory text, trials, drugs, grants, filings, standards or vulnerabilities as evidence.
+frameworks: ["claude-code", "codex", "langchain", "custom-agents"]
+use_cases: ["literature-search", "paper-analysis", "talent-search", "citation-appraisal", "legal-research", "clinical-trials", "regulatory-research", "security-research"]
 ---
 
-# DeepXiv CLI Skill
+# DeepXiv CLI
 
-## 🚀 30-Second Overview
+One CLI, one token: papers (`search`, `paper`, `pmc`, `trending`, `ask`) plus 12
+1stAuthor domains (`deepxiv fa …`). Everything below was run against production
+on 2026-10-12 with deepxiv-sdk 1.2.1.
 
-**What**: Access open access academic papers (arXiv, PMC, bioRxiv, medRxiv) through a powerful CLI tool.
-
-**What you can do**:
-- 💬 Ask a question and get a cited answer, from arXiv or the web (`deepxiv ask`)
-- 🔍 Search papers with semantic search
-- 📄 Read papers section-by-section (save tokens!)
-- 🧠 Use built-in AI agent for analysis
-- 📊 Access biomedical literature (PMC)
-- 👥 Search researchers, statutes, judgments, trials and more via 1stAuthor (`deepxiv fa`)
-
-**When to use**: User wants to search, read, or analyze academic papers
-
----
-
-## 🎯 Command Selection Guide
-
-**I want to...** → **Use this command**
-
-| Goal | Command | Example |
-|------|---------|---------|
-| **Answer a question about the literature** | `deepxiv ask` | `deepxiv ask "what speedup does DEER report on HumanEval"` |
-| **Answer a question about anything else** | `deepxiv ask --web` | `deepxiv ask "Claude API pricing" --web` |
-| Find papers on a topic | `deepxiv search` | `deepxiv search "agent memory" --limit 5` |
-| Quickly understand a paper | `deepxiv paper <id> --brief` | `deepxiv paper 2409.05591 --brief` |
-| Read specific section | `deepxiv paper <id> --section` | `deepxiv paper 2409.05591 --section Introduction` |
-| See paper structure | `deepxiv paper <id> --head` | `deepxiv paper 2409.05591 --head` |
-| Preview first 10k chars | `deepxiv paper <id> --preview` | `deepxiv paper 2409.05591 --preview` |
-| Get full text | `deepxiv paper <id>` | `deepxiv paper 2409.05591` |
-| Access biomedical paper | `deepxiv pmc <id>` | `deepxiv pmc PMC544940` |
-| Find researchers on a topic | `deepxiv fa search talent` | `deepxiv fa search talent "deep learning" -F "h_index>=50"` |
-| Read one researcher's profile | `deepxiv fa read talent <id>` | `deepxiv fa read talent 3426` |
-| Search statutes, judgments, trials, drugs, CVEs... | `deepxiv fa search <domain>` | `deepxiv fa search law "个人信息保护"` |
-| Intelligent analysis | `deepxiv agent query` | `deepxiv agent query "analyze this paper"` |
-
----
-
-## 📚 Core Commands Reference
-
-### 0. Ask a Question (`deepxiv ask`)
-
-**When to use**: The goal is an *answer*, not a specific paper's text. This runs
-the whole search → judge → read loop server-side and returns prose with real
-citations. Reach for it before hand-rolling `search` + `paper --section`.
+## 1. Setup
 
 ```bash
-# arXiv (default) — methods, numbers, experimental results
-deepxiv ask "what speedup does speculative decoding report on HumanEval"
-deepxiv ask "对比几种缓解 MoE 路由崩塌的方法" --effort high
-
-# --web — current events, products, pricing, anything non-academic
-deepxiv ask "Anthropic Claude API pricing tiers" --web
-deepxiv ask "NeurIPS 2025 best paper winner" --web --search-type news
-deepxiv ask "retrieval evaluation methodology" --web --search-type scholar
+pip install -U deepxiv-sdk          # `deepxiv fa` needs 1.2.0+, `fa search --sort` 1.2.1+
+deepxiv --version
+deepxiv token                       # shows the active token
 ```
 
-**Requires a registered key.** The auto-registered SDK token returns `403` —
-users must register at https://data.rag.ac.cn/register. Every account gets 300
-agentic calls/day free, from a quota pool separate from the general daily limit
-(so a `429` here does not block `search` or `paper`). If a call 403s, tell the
-user to register rather than retrying.
+- **Token**: the first call auto-registers a free token and saves it to `~/.env`
+  (`DEEPXIV_TOKEN`). Every command also takes `-t TOKEN`.
+- **Registered key**: the agentic calls need one (300/day free). On the
+  auto-registered token, `deepxiv ask` returns **403**; `deepxiv fa ask` works
+  **3 times in total** (stderr: `🎟️ 试用剩余 N/3 次 · Free trial: N of 3 asks left`),
+  then returns 403. Tell the user to register at https://data.rag.ac.cn/register
+  and run `deepxiv config --token THEIR_KEY`. Don't spend the trial on throwaway
+  questions, and don't retry a 403. Search and read work on either token.
+- **No other keys**: 1stAuthor domains go through deepxiv with the same token.
 
-Takes 8–30s end to end; the answer streams, so text appears well before that.
+## 2. Which command
 
-| `--effort` | Rounds | First token (arXiv / web) | Use for |
-|---|---|---|---|
-| `default` | 1–2 | 3–4s / 5–9s | Facts, finding papers, one specific number |
-| `high` | 3 | 7–8s / ≈13s | Comparing sources, needing body-text detail |
-| `xhigh` | 4–5 | 9–13s / longer | How a direction evolved, cross-source surveys |
+| The task needs… | Command |
+|---|---|
+| An answer, with citations, from the literature | `deepxiv ask "…"` |
+| An answer about anything non-academic (news, products, pricing) | `deepxiv ask "…" --web` |
+| Papers on a topic | `deepxiv search "…"` |
+| One paper, as cheaply as possible | `deepxiv paper ID --brief` → `--head` → `--section NAME` |
+| Biomedical full text | `deepxiv pmc PMCID`, `deepxiv search "…" --biorxiv/--medrxiv` |
+| What's hot on arXiv | `deepxiv trending --days 7` |
+| People: researchers, students, profiles, coauthors | `deepxiv fa … talent` |
+| Which academicians / fellows cited a paper, and what they said | `deepxiv fa … appraise` |
+| Statutes (China and 25 other jurisdictions) | `deepxiv fa … law` |
+| Court judgments (China, US) | `deepxiv fa … cases` |
+| US statutes, regulations, agency decisions | `deepxiv fa … us_law` |
+| Clinical trials (ClinicalTrials.gov) | `deepxiv fa … trials` |
+| US drug labels (openFDA) | `deepxiv fa … drugs` |
+| NSF / NIH grants | `deepxiv fa … grants` |
+| Company filings (SEC, China) | `deepxiv fa … filings` |
+| Chinese national standards (GB, GB/T) | `deepxiv fa … standards` |
+| Vulnerabilities (NVD + CISA KEV + EPSS) | `deepxiv fa … cve` |
+| US Federal Register | `deepxiv fa … fr` |
+| A cited answer over one of those domains | `deepxiv fa ask "…" -d DOMAIN` |
 
-**Writing the query — this matters more than any flag:**
-- Be specific. `"what compression ratio does KV cache eviction report on LongBench"`
-  works; `"kv cache"` does not.
-- Ask for numbers explicitly ("what speedup", "which benchmark") to make it read
-  paper bodies rather than abstracts.
-- Put scope in the query text: year, venue, category, author, min citations.
-- Chinese queries work directly; the answer comes back in the query's language.
-- **If the answer misses, rephrase — don't just raise `--effort`.** Effort adds
-  reading rounds but cannot redirect first-round recall.
+**Prefer `ask` when the user wants an answer**, and search/read when they want
+the documents themselves, a complete list, or numbers you will compute on.
 
-**Reading the output:**
-- Answer → stdout; sources and progress → stderr. `deepxiv ask "..." > answer.md`
-  captures only the answer.
-- Every `[arXiv:ID]` is real — the service is instructed never to invent one, and
-  says "no relevant papers" instead of fabricating. Keep those IDs in what you
-  report back to the user.
-- The sources list is the *retrieval set*, a superset of what's cited. The CLI
-  shows only cited sources; `--all-sources` shows the rest.
-- **On `--web`, weigh evidence strength.** The service reads only *cached* page
-  bodies and never fetches live, so uncached pages contribute just a search
-  snippet. The CLI marks pages read in full (📄) versus snippet-only (🔗), and
-  the answer flags snippet-only claims. Pass that caveat on to the user instead
-  of presenting everything as equally solid.
-- On a truncation warning, do not treat the answer as complete — re-run with a
-  larger `--max-answer-tokens` or a narrower query.
-- Follow up on any cited paper with the normal commands:
-  `deepxiv paper <id> --section Method`.
+## 3. Output contract (all commands)
 
-### 1. Search Papers (`deepxiv search`)
+- **stdout is data only**: hits, documents, answers, or JSON with `--json`
+  (`--format json` for `search`). **stderr** carries quota, progress, routing,
+  sources, hints and errors. So `> file` and `| jq` get clean data.
+- **Exit codes**: `0` success · `1` API/network error (401, 403, 429, 4xx, 5xx,
+  or an error during `ask`) · `2` bad usage (unknown filter field, bad value).
+- **Quota line** on stderr after every `fa` call: `💳 cost 2 · 9990/10000 left today`.
 
-**When to use**: Finding relevant papers on a topic
+## 4. Papers
+
+### Search
 
 ```bash
-# Basic search (quick)
-deepxiv search "agent memory" --limit 5
-
-# Advanced search with filters
-deepxiv search "transformer" --format json
-deepxiv search "LLM" --categories cs.AI,cs.CL --min-citations 100
-
-# Date range
-deepxiv search "vision models" --date-from 2024-01-01 --date-to 2024-12-31
+deepxiv search "speculative decoding" --limit 10
+deepxiv search "world model" --date-from 2025-01 --min-citations 20 --limit 20
+deepxiv search "LLM agents" --categories cs.AI,cs.CL --venue NeurIPS --venue-year 2025
+deepxiv search "protein design" --biorxiv --limit 5
+deepxiv search "world model" --limit 100 --format json | jq -r '.result[].arxiv_id'
 ```
 
-**Expected output**: List of papers with title, arxiv_id, score, citation count
-**Token cost**: ≈500-1000 tokens per search
-**Tips**:
-- Use `--limit 3-5` for quick overview
-- Use `--format json` for downstream processing
-- Add `--use-fine-rerank` when ranking quality matters more than latency
+Options: `--limit 1..100`, `--offset`, `--categories`, `--authors`, `--orgs`,
+`--venue` (repeatable), `--venue-year`, `--min-citations`, `--date-from/--date-to`
+(YYYY, YYYY-MM or YYYY-MM-DD), `--use-fine-rerank`. JSON hits carry
+`arxiv_id, title, tldr, abstract, authors, date, citation_count, categories, venue, github_url`.
 
----
-
-### 2. Read arXiv Papers (`deepxiv paper`)
-
-**When to use**: Understanding specific papers (choose format by depth needed)
-
-#### Option A: Quick Summary (30 seconds)
-```bash
-deepxiv paper 2409.05591 --brief
-# ✓ Best for: Quick understanding
-# → Title, TLDR, keywords, citation count
-# Token cost: ~500 tokens
-# Use when: "What's this paper about?"
-```
-
-#### Option B: Paper Structure (2 minutes)
-```bash
-deepxiv paper 2409.05591 --head
-# ✓ Best for: Understanding paper organization
-# → Metadata, all sections with summaries
-# Token cost: ~1-2k tokens
-# Use when: "What does this paper contain?"
-```
-
-#### Option C: Quick Scan (3 minutes)
-```bash
-deepxiv paper 2409.05591 --preview
-# ✓ Best for: Fast preview without full read
-# → First ~10k characters
-# Token cost: ~2k tokens
-# Use when: "Let me scan the introduction"
-```
-
-#### Option D: Specific Section (1 minute)
-```bash
-deepxiv paper 2409.05591 --section Introduction
-# ✓ Best for: Reading one section in detail
-# → Full section content
-# Token cost: ~1-5k tokens (varies by section)
-# Use when: "I only need the introduction"
-```
-
-#### Option E: Complete Paper (for deep analysis)
-```bash
-deepxiv paper 2409.05591
-# or explicitly: deepxiv paper 2409.05591 --raw
-# ✓ Best for: Full text analysis
-# → Complete paper in markdown
-# Token cost: ~10-50k tokens
-# Use when: "I need to thoroughly analyze this"
-```
-
----
-
-### 3. Access Biomedical Literature (`deepxiv pmc`)
-
-**When to use**: Need medical, biology, or biomedical research
+### Read progressively — the main token saver
 
 ```bash
-# Quick metadata
+deepxiv paper 2603.19312 --brief                 # ~300 tokens: TLDR, keywords, citations, GitHub
+deepxiv paper 2603.19312 --head                  # section list with per-section TLDR and token_count (JSON)
+deepxiv paper 2603.19312 --section "Introduction"  # one section
+deepxiv paper 2603.19312 --preview               # first ~10k chars
+deepxiv paper 2603.19312                         # full text (often 20–50k tokens)
+deepxiv paper 2603.19312 --popularity            # social signal
+deepxiv paper 10.1101/2021.02.26.433129 --biorxiv
 deepxiv pmc PMC544940 --head
-
-# Full paper
-deepxiv pmc PMC544940
 ```
 
-**Expected output**: Paper metadata or complete paper JSON
-**Token cost**: ≈1-2k tokens (metadata), ≈10-30k tokens (full)
+Rule: `--brief` to decide, `--head` to find the section, `--section` to read it.
+Pass section names exactly as `--head` prints them (including odd escapes like
+`\&`). For hundreds of papers, run `--brief` in parallel
+(`xargs -P 8 -I{} deepxiv paper {} --brief`) — 340 briefs take ~16 s.
 
----
-
-### 4. Manage Token (`deepxiv token`)
-
-**When to use**: Check your API token status
+### Ask (registered key)
 
 ```bash
-deepxiv token
-# Shows current token and daily limit info
+deepxiv ask "what speedup does speculative decoding report on HumanEval"
+deepxiv ask "compare methods for MoE routing collapse" --effort high
+deepxiv ask "NeurIPS 2025 best paper" --web --search-type news
+deepxiv ask "…" > answer.md          # answer only; sources stay on stderr
 ```
 
-**Note**: Token auto-registers on first use, saves to `~/.env`
+`--effort default|high|xhigh` (more reading rounds), `--web`, `--search-type
+search|scholar|news|images`, `--top-k`, `--max-answer-tokens`, `--json`,
+`--all-sources`. Be specific and ask for numbers; if the answer misses,
+rephrase rather than raising effort. Every `[arXiv:ID]` it cites is real — keep
+them. On `--web`, pages marked 🔗 were read only as snippets; say so.
 
----
+## 5. 1stAuthor domains (`deepxiv fa`)
 
-### 5. Researchers, Law, Trials and More (`deepxiv fa`) — beta
-
-**Availability**: deepxiv-sdk 1.2.0+ (`pip install -U deepxiv-sdk`).
-
-**When to use**: The answer lives outside papers — people (`talent`), statutes
-(`law`, `us_law`), court judgments (`cases`), clinical trials, drugs, grants,
-filings, standards, CVEs, the Federal Register. These are 1stAuthor's domains,
-reached with the deepxiv token; no other key is needed.
+### The loop
 
 ```bash
-deepxiv fa domains                 # list domains (free)
-deepxiv fa spec talent             # filters, read levels/extras and their prices (free) — check before filtering
-
-# search → read, same as papers
-deepxiv fa search talent "Yann LeCun"                         # names: Chinese, pinyin, English
-deepxiv fa search talent "deep learning" -F "org=University of Toronto" -F "h_index>=50" --top-k 5
-deepxiv fa read talent 3426                                   # profile (default level)
-deepxiv fa read talent 3426 --level brief                     # card only — cheapest
-deepxiv fa read talent 3426 --level full                      # full researched profile, markdown
-deepxiv fa read talent 3426 --extra network                   # coauthors / advisors / students
-deepxiv fa search law "个人信息保护" --top-k 5 --json
-
-deepxiv fa resolve "Geoffrey Hinton" "Yann LeCun"             # batch names → talent ids
-deepxiv fa facets talent role_norm                            # values usable in -F
-
-# cited answer over a domain (registered key, agentic quota)
-deepxiv fa ask "who are the leading researchers on self-supervised learning" --domain talent
-deepxiv fa ask "个人信息出境需要满足什么条件"     # no --domain: auto-routed
+deepxiv fa domains                    # 12 domains, doc counts (free)
+deepxiv fa spec talent                # filters, levels, extras, prices, samples (free)
+deepxiv fa search talent "Geoffrey Hinton" -k 3      # → ids
+deepxiv fa read talent 15023 -l brief                # cheapest card
+deepxiv fa read talent 15023                         # default level (detail)
+deepxiv fa ask "…" -d talent                         # cited answer (registered key, or 3 trial asks)
 ```
 
-**Filters**: `-F k=v`, `k=a,b` (any), `k>=n`, `k<=n`, `k=n..m`, `k~text`.
-Field names differ per domain — take them from `deepxiv fa spec DOMAIN`.
+**Always run `deepxiv fa spec DOMAIN` before filtering** — field names, allowed
+operators, sort orders, read levels and prices differ per domain and are listed
+there. A per-domain digest is in [references/fa-domains.md](references/fa-domains.md).
 
-**Output**: data on stdout, quota/routing/sources on stderr. `--json` gives the
-full response for parsing.
-
-**Cost**: search/read/facets/resolve draw on the general daily limit at
-1stAuthor's prices (search 2, read 1–10 by level; `spec` lists them). Read at
-`--level brief` first, go deeper only when needed. `fa ask` uses the agentic
-pool like `deepxiv ask` and 403s on the auto-registered token — tell the user to
-register at https://data.rag.ac.cn/register; `fa search`/`read` still work.
-
-Full reference: [FA.md](../../FA.md).
-
-**Deprecated**: `deepxiv talent search|survey` are aliases for
-`fa search talent` / `fa read talent`. IDs from the old talent index don't
-carry over.
-
----
-
-### 6. Intelligent Agent (`deepxiv agent`)
-
-**When to use**: Need analysis beyond simple retrieval
+### search
 
 ```bash
-# One-time query
-deepxiv agent query "What are key innovations in this paper?"
-
-# Multi-turn reasoning
-deepxiv agent query "Compare these two approaches" --max-turn 10 --verbose
-
-# First time setup
-deepxiv agent config
-# Configure your LLM (OpenAI, DeepSeek, OpenRouter, etc.)
+deepxiv fa search DOMAIN "query" [-F FILTER]... [-k N] [--offset N] [--mode M] [--sort S] [--head] [--json]
 ```
 
-**Token cost**: Varies by reasoning depth
-**Requirements**: Requires langgraph and langchain-core
+- `-k` 1–100 (default 10). `--mode`: e.g. `hybrid`, `dense`, `bm25`, `name`
+  (talent). `--sort`: e.g. `date`, `epss` (cve). `--head`: richer hits, costs more.
+- Filter-only listing: pass `"*"` as the query (an empty string is rejected).
+- Filter syntax (validated against the spec; a bad field exits 2):
 
----
+| `-F` | Meaning |
+|---|---|
+| `k=v` | equals |
+| `k=a,b` | any of |
+| `k>=n`, `k<=n` | range bound |
+| `k=n..m` | range |
+| `k~text` | full-text match on a text field |
+| `k=true` | boolean |
 
-## 🎬 Common Workflows
+- Filter values are the database's own values. For Chinese institutions and
+  cities they are Chinese (`org=清华大学`, `location=北京,上海`). Get real values
+  with `deepxiv fa facets DOMAIN FIELD`.
 
-### Workflow 1: Quick Paper Review (2 minutes)
+### read
+
 ```bash
-# Step 1: Get brief info
-deepxiv paper 2409.05591 --brief
-
-# Step 2: Read introduction
-deepxiv paper 2409.05591 --section Introduction
-
-# Step 3: Check results (optional)
-deepxiv paper 2409.05591 --section Results
+deepxiv fa read DOMAIN ID [ID...] [-l brief|detail|full] [-e EXTRA] [-p k=v]... [-f json|md|html] [--json]
 ```
-**Total tokens**: ≈2-3k | **Use case**: Quick assessment before deciding to read fully
 
-### Workflow 2: Deep Paper Analysis (15 minutes)
+- `-l brief` is cheapest; default is usually `detail`; `full` is the longest
+  (talent full = researched profile in markdown).
+- `-e` adds one extra: talent `network` (coauthors/advisors/students), `papers`,
+  `scholar`, `sources`; appraise `honorees`. Prices in the spec.
+- `-p` passes domain parameters, e.g. appraise `-p stance=positive -p org=CAS,CAE
+  -p honoree="Yoshua Bengio"`; law `-p section=<chapter id>` with `-l full`.
+- Several ids in one call: `deepxiv fa read talent 15023 3426 2813`.
+- IDs with slashes or spaces work as one quoted argument: `"GB/T 42729-2023"`.
+
+### facets, resolve
+
 ```bash
-# Step 1: Understand structure
-deepxiv paper 2409.05591 --head
-
-# Step 2: Read key sections
-deepxiv paper 2409.05591 --section Introduction
-deepxiv paper 2409.05591 --section Methods
-deepxiv paper 2409.05591 --section Results
-
-# Step 3: AI analysis
-deepxiv agent query "Summarize the main contributions"
+deepxiv fa facets talent career_stage          # value → count, for -F
+deepxiv fa resolve "Geoffrey Hinton" "Yann LeCun"   # names → talent ids, batch
 ```
-**Total tokens**: ≈10-15k | **Use case**: Thorough understanding
 
-### Workflow 3: Literature Search (5 minutes)
+### ask (registered key; SDK token: 3 lifetime trials)
+
 ```bash
-# Step 1: Find relevant papers
-deepxiv search "agent memory" --limit 5
-
-# Step 2: Quick assess each
-for id in results; do
-    deepxiv paper $id --brief
-done
-
-# Step 3: Deep read top 2
-deepxiv paper <top_id_1>
-deepxiv paper <top_id_2>
+deepxiv fa ask "who works on self-supervised learning at Mila" -d talent
+deepxiv fa ask "DeepSeek-R1 得到了哪些院士的正面评价" -d appraise -p paper=arxiv:2501.12948
+deepxiv fa ask "个人信息出境需要满足什么条件" -d law -e medium
+deepxiv fa ask "recruiting phase 3 trials for pancreatic cancer" -d trials
+deepxiv fa ask "今天有哪些高危在野利用漏洞"            # no -d: routed; stderr says where
 ```
-**Total tokens**: ≈5-10k | **Use case**: Literature review
 
----
+`-e low|medium|high`, `-p` domain params (`deepxiv fa spec D` lists them),
+`--no-stream`, `--json`, `-v` (tool calls on stderr). Each domain's ask answers
+from that domain only; to cover several, run one ask per domain (they can run
+in parallel) and merge. If stderr shows a low-confidence route, re-run with `-d`.
+Citations look like `[law:…]`, `[cve:CVE-…]`; keep them.
 
-## 💪 Capabilities & Limitations
+## 6. Domain recipes (verified)
 
-### What deepxiv Can Do ✅
-
-| Capability | Details |
-|-----------|---------|
-| **Hybrid Search** | BM25 + Vector search across 2M+ arXiv papers |
-| **Smart Summaries** | AI-generated TLDRs and keywords |
-| **Section Access** | Read specific sections without loading full text |
-| **Biomedical Access** | PubMed Central (PMC) papers |
-| **Open Access Only** | arXiv, PMC, bioRxiv, medRxiv |
-| **Intelligent Analysis** | ReAct agent with multi-turn reasoning |
-| **Multiple LLMs** | Compatible with OpenAI, DeepSeek, OpenRouter, etc. |
-
-### What deepxiv Cannot Do ❌
-
-| Limitation | Note |
-|-----------|------|
-| **Subscription Journals** | Only open access papers (by design) |
-| **Real-time Updates** | arXiv has ≈1-2 day delay |
-| **Paywalled Content** | Cannot access IEEE, ACM, etc. journals |
-| **Daily Limits** | 10,000 requests/day free (email for more) |
-| **Proprietary Data** | Only academic papers, not internal docs |
-
----
-
-## 🔧 Troubleshooting
-
-### Problem: Paper Not Found
 ```bash
-deepxiv paper invalid_id
-# Error: NotFoundError: Paper not found
-```
-**Solution**:
-- Check arXiv ID format (should be like `2409.05591`)
-- Verify at https://arxiv.org
+# talent — people
+deepxiv fa search talent "Yann LeCun" -k 3                       # names: English, Chinese, pinyin, "Last, First"
+deepxiv fa search talent "具身智能" -F org=清华大学 -F role=教授 -F min_h_index=30 -k 10
+deepxiv fa search talent "world model" -F career_stage=student -F location=北京,上海 -k 50
+ids=$(deepxiv fa search talent "world model" -F career_stage=student -k 40 --json | jq -r '.hits[].id')
+deepxiv fa read talent $ids > profiles.json                      # 40 profiles in one call (~4 s)
+deepxiv fa read talent 15023 -e network
 
-### Problem: Daily Limit Exceeded
-```bash
-deepxiv search "topic"
-# Error: RateLimitError: Daily limit reached
-```
-**Solution**:
-- Wait until tomorrow (limit resets daily)
-- OR email `tommy@chien.io` with name, email, phone for higher limit
+# appraise — who of note cited a paper
+deepxiv fa search appraise "DeepSeek-R1" -k 3                    # → arxiv:2501.12948
+deepxiv fa read appraise arxiv:2501.12948 -l brief               # counts + stance breakdown
+deepxiv fa read appraise arxiv:2501.12948 -p stance=positive -p org=CAS,CAE
 
-### Problem: Token Invalid
-```bash
-deepxiv paper 2409.05591
-# Error: AuthenticationError: Invalid or expired token
-```
-**Solution**:
-- Run `deepxiv config --token YOUR_NEW_TOKEN`
-- Or delete `~/.env` to auto-register new token
+# law / cases / us_law
+deepxiv fa search law "刑法第266条" -k 3                          # statute + article number locates directly
+deepxiv fa read law 刑法 -l brief
+deepxiv fa search cases "网络刷单诈骗 未遂" -F province=浙江省 -F "judge_year>=2018" -k 5
+deepxiv fa search cases "qualified immunity police" -F country=us -F court_level=scotus -k 5
+deepxiv fa search us_law "data breach notification" -F jurisdiction=ca,ny -k 5
 
-### Problem: Agent Dependencies Missing
-```bash
-deepxiv agent query "analyze"
-# Error: langgraph not installed
-```
-**Solution**:
-```bash
-pip install deepxiv-sdk[agent]
-```
+# trials / drugs / grants
+deepxiv fa search trials "GLP-1 obesity" -F phase=PHASE3 -F overall_status=RECRUITING -k 5
+deepxiv fa read trials NCT02082496 -l brief
+deepxiv fa search drugs "GLP-1 weight loss" -F has_boxed_warning=true -k 5
+deepxiv fa search grants "single-cell transcriptomics" -F agency=nih -F "fy>=2020" -k 5
 
-### Problem: Timeout on Large Papers
-```bash
-deepxiv paper <large_paper_id>
-# Error: Request timed out
-```
-**Solution**:
-- Use `--brief` or `--head` instead of full paper
-- Or use `--section` to read specific parts
-- Increase timeout: Use Python API with `Reader(timeout=180)`
-
----
-
-## 📊 Output Format Guide
-
-### For Search Results
-**Format**: Show title, arxiv_id, brief context
-```
-1. Title of Paper (2409.05591)
-   - Field: Computer Science / AI
-   - Citations: 150
-   - Key idea: Brief 1-line summary of main contribution
+# filings / standards / cve / fr
+deepxiv fa search filings "CEO resignation" -F market=us -F event_types=officer_director_change -F "filed_year>=2023" -k 5
+deepxiv fa search filings "*" -F form=10-Q -F cik=320193 --sort date -k 4
+deepxiv fa search standards "锂离子电池安全" -F state=现行 -k 5
+deepxiv fa read standards "GB/T 42729-2023" -l brief
+deepxiv fa search cve "*" -F kev=true -F severity=critical,high --sort epss -k 10
+deepxiv fa read cve CVE-2024-3400 -l brief
+deepxiv fa search fr "PFAS drinking water" -F doc_type=Rule -k 5
 ```
 
-### For Paper Reading
-**Always mention what command was used**:
-```
-From `deepxiv paper 2409.05591 --brief`:
-- Title: MemGPT: Towards LLMs as Operating Systems
-- TLDR: Introduces hierarchical memory management for extended context
-- Key concepts: agent memory, context management, LLM systems
-- (~500 tokens)
-```
+Domain caveats worth passing on (details in the reference): model-written
+fields (one-liners, summaries, cve `vuln_class`, standards `title_en`) are for
+summarising, not quoting — quote the original-text fields and cite by `id`.
+CVE output must carry the NVD "not endorsed" notice. The standards domain is a
+catalogue only (no clause text).
 
-### For Structured Data
-**Use JSON format when**:
-- Processing results programmatically
-- Building pipelines
-- Storing for later analysis
-```bash
-deepxiv search "topic" --format json  # Pipe to other tools
-```
+## 7. Workflows
 
----
+**Literature survey** (≈2 min for a few hundred papers):
+1. 8–15 `deepxiv search … --limit 100 --format json` calls on sub-topics; dedupe ids.
+2. `--brief` on the 200–400 most relevant (parallel).
+3. `--head` + one `--section` on the 10–15 key papers.
+4. Write the synthesis citing only papers you read, with arXiv ids.
 
-## ⏱️ Token Budget Guide
+**Find people for a topic**: `fa search talent` with `career_stage` / `location`
+/ `org` / `min_h_index` filters → `fa read talent <ids>` in one batch → rank on
+h-index, areas and representative papers. Profiles are LLM-researched: verify
+before making decisions about a person, and don't publish personal details.
 
-When planning queries, consider token costs:
+**Who praised this paper**: `fa search appraise "<title>"` → `read -l brief` for
+counts → `read -p stance=positive` (add `-p org=…` to narrow) → or
+`fa ask -d appraise -p paper=<id>` for a written, quote-backed summary.
 
-```
-Quick Summary:        500 tokens
-Metadata (--head):    1-2k tokens
-One Section:          1-5k tokens (depends on section)
-Full Paper:           10-50k tokens
-Search Query:         0.5-1k tokens
-Agent Analysis:       5-20k tokens (reasoning depth)
-```
+**Legal question across jurisdictions**: run `fa ask -d law`, `-d cases` and
+`-d us_law` in parallel with the same question, then merge, keeping every
+citation. Answers are research aids, not legal advice; say so.
 
-**Recommendation**: For general use, stick to `--brief` and `--section` to keep tokens under 5k per query.
+## 8. Cost and limits
 
----
+- `fa` search/read/facets/resolve draw on the general daily limit at the prices
+  in `fa spec` (search 2; read 1–10 by level; extras 1–20). Free samples in the
+  spec cost 0. Read `brief` first and go deeper only for what you will use.
+- `ask` and `fa ask` use the separate agentic pool: 1 per question, 300/day on a
+  free registered account, regardless of effort.
+- On **429**: daily limit (wait, or the user asks for more), or concurrency
+  (the CLI retries once after `Retry-After`); keep parallelism ≤ 4 per key for
+  `fa` and ≤ 8 for `paper --brief`.
 
-## 🚀 Advanced Usage
+## 9. Errors
 
-### Batch Processing (Multiple Papers)
-```bash
-for id in 2409.05591 2504.21776 2503.04975; do
-    echo "=== $id ==="
-    deepxiv paper $id --brief
-done
-```
+| Symptom | Do |
+|---|---|
+| `403` on `ask` / `fa ask` (no key, or `fa ask` trial used up / today's trials all taken) | Ask the user to register (https://data.rag.ac.cn/register) and `deepxiv config --token KEY`; meanwhile use search + read |
+| Exit 2, `unknown filter` / bad op | `deepxiv fa spec DOMAIN`; use the listed field and operator |
+| `400 … query must be 1–1000 characters` | Use `"*"` for filter-only searches |
+| No hits | Loosen filters, check values with `fa facets`, try another `--mode` |
+| `Paper not found` | Check the id format (`2409.05591`); bioRxiv/medRxiv need the flag |
+| Truncation warning on `ask` | Raise `--max-answer-tokens` or narrow the question |
 
-### Piping to Other Tools
-```bash
-deepxiv search "topic" --format json | jq '.results[] | .arxiv_id'
-```
+## 10. Python
 
-### Custom Token Configuration
 ```python
+import os
 from deepxiv_sdk import Reader
-reader = Reader(token="YOUR_TOKEN", timeout=120, max_retries=5)
+r = Reader(token=os.environ["DEEPXIV_TOKEN"])  # Reader takes the token explicitly
+r.search("world model", size=10)
+r.brief("2603.19312"); r.head("2603.19312"); r.section("2603.19312", "Introduction")
+
+fa = r.fa()                                     # FAClient, same token
+fa.search("talent", "Geoffrey Hinton", top_k=3)
+fa.search("cve", "*", filters={"kev": True}, sort="epss")
+fa.read("talent", "15023", level="brief")
+for ev in fa.ask_stream("个人信息出境需要满足什么条件", domain="law"):
+    ...                                         # route, answer_delta, sources, done, error
 ```
 
----
-
-## 🌐 Supported & Coming Soon
-
-### Current Support ✅
-- **arXiv** - Computer Science, Physics, Math, Economics
-- **PMC** - PubMed Central biomedical literature
-- **bioRxiv** - Biology preprints (`deepxiv search --biorxiv`, `deepxiv biorxiv DOI`)
-- **medRxiv** - Medicine preprints (`deepxiv search --medrxiv`, `deepxiv medrxiv DOI`)
-
-### Coming Soon 🔄
-- **Other OA** - Additional open access sources
-- **Full OA Ecosystem** - Unified cross-source search
-
----
-
-## 📞 Getting Help
-
-**Command not working?**
-```bash
-deepxiv <command> --help
-```
-
-**Need a higher daily limit?**
-Email: `tommy@chien.io` with name, email, phone
-
-**Found a bug?**
-[GitHub Issues](https://github.com/qhjqhj00/deepxiv_sdk/issues)
-
-**Learn more?**
-[Full Documentation](https://github.com/qhjqhj00/deepxiv_sdk#readme)
-
----
-
-## ✨ Tips & Best Practices
-
-1. **Start with `--brief`** - Always start with brief overview
-2. **Use sections** - Don't load full papers when sections suffice
-3. **Save tokens** - Stack operations to reduce API calls
-4. **Check limits** - Run `deepxiv token` before large batches
-5. **Use agent wisely** - For complex analysis that needs reasoning
-6. **Format choice** - Use `--format json` for piping, plain text for humans
-7. **Error handling** - Always handle "Paper not found" and "Limit exceeded" cases
-
----
-
-**Last Updated**: 2024 | **Version**: 0.2.0 | **Status**: Production Ready
+Full references: [FA.md](../../FA.md) (every `fa` option, events, HTTP API),
+[USAGE.md](../../USAGE.md) (papers and the Python API).

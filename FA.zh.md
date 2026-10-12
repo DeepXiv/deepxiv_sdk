@@ -45,7 +45,7 @@ token 有两种：
 
 | | 能用什么 | 怎么获得 |
 |---|---|---|
-| **自动注册的 SDK token** | 除 `fa ask` 外全部 | 首次使用时自动创建 |
+| **自动注册的 SDK token** | 全部；`fa ask` 仅限终身试用 3 次 | 首次使用时自动创建 |
 | **注册账号的 key** | 全部，包括 `fa ask` | 到 [data.rag.ac.cn/register](https://data.rag.ac.cn/register) 注册，再执行 `deepxiv config --token YOUR_KEY` |
 
 用 `deepxiv fa whoami` 可以看当前用的是哪一种。
@@ -222,7 +222,7 @@ deepxiv fa resolve "Geoffrey Hinton" "Yann LeCun" "Yoshua Bengio"
 deepxiv fa ask QUESTION [-d DOMAIN] [-e EFFORT] [-p k=v]... [--no-stream] [--no-sources] [-v] [--json]
 ```
 
-带引用的回答：agent 替你检索并阅读该域。**需要注册 key。**
+带引用的回答：agent 替你检索并阅读该域。**需要注册 key**（每天免费 300 次）。自动注册的 SDK token 有 **3 次终身试用**，stderr 会显示 `🎟️ 试用剩余 2/3 次`；用完后返回 403，并原样显示服务端的说明。
 
 | 选项 | |
 |---|---|
@@ -267,7 +267,7 @@ deepxiv fa ask "Who is Yann LeCun?" -d talent --json > answer.json
 deepxiv fa whoami [--json]
 ```
 
-**免费。** 显示 token 的类型和名称、今日通用配额（已用 / 上限 / 剩余），以及 agentic 配额（档位 / 已用 / 上限 / 剩余），或者 `ask` 不可用的原因。
+**免费。** 显示 token 的类型和名称、今日通用配额（已用 / 上限 / 剩余），以及 agentic 配额：注册 key 显示档位 / 已用 / 上限 / 剩余，SDK token 显示试用（已用 / 3 / 剩余，终身）。
 
 ## 5. 过滤
 
@@ -334,7 +334,7 @@ deepxiv fa search talent "Geoffrey Hinton" --json | jq '.hits[0].id'
 | `read` | 通用 daily limit | 按级别 / extra / format 计，全部价格见 `spec`（talent：brief 1、detail 3、full 10，extra 1–20） |
 | `facets` | 通用 daily limit | 1 |
 | `resolve` | 通用 daily limit | 2 |
-| `ask` | agentic 配额（与 `deepxiv ask` 共用） | 每次 1 次，与域和 effort 无关；**仅限注册 key** |
+| `ask` | agentic 配额（与 `deepxiv ask` 共用） | 每次 1 次，与域和 effort 无关；注册 key 每天 300 次，SDK token 终身试用 3 次 |
 
 - 通用 daily limit：自动注册的 token 为 1,000，注册 key 为 10,000。注册 key 另有每天 300 次免费 agentic 调用。见 [USAGE.zh.md § Token 与额度](USAGE.zh.md#token-与额度)。
 - 每次付费调用后，CLI 会在 stderr 打出 `💳 cost N · 剩余/上限`，剩余不足 20 时会提醒。
@@ -349,7 +349,7 @@ deepxiv fa search talent "Geoffrey Hinton" --json | jq '.hits[0].id'
 
 | 看到的提示 | 原因 | 怎么办 |
 |---|---|---|
-| `fa ask` 需要注册账号的 key | 403：用 SDK token 调了 `ask` | 注册后执行 `deepxiv config --token …` |
+| `fa ask` 返回 403 并显示服务端说明（试用已用完 / 今日试用名额已满 / key 不符合条件） | SDK token 的 3 次试用已用完，或全站当日试用总量已满 | 注册后执行 `deepxiv config --token …` |
 | 认证失败（401） | token 缺失或无效 | `deepxiv token` 查看，或设置 `DEEPXIV_TOKEN` |
 | 已到日使用上限 | 429：通用 daily limit 用完 | 等明天，或注册以提高额度 |
 | Too many concurrent requests, retry in Ns | 带 `Retry-After` 的 429：同时超过 4 个 `ask` | 按提示等待 |
@@ -457,7 +457,7 @@ except FAError as e:
     e.details               # 如 {"extras": [...]} 或 {"allowed": [...]}
     e.retry_after           # 秒数，取自 Retry-After
     e.request_id            # 反馈问题时附上
-    e.needs_registered_key  # SDK token 调 ask 得到 403 时为 True
+    e.needs_registered_key  # SDK token 试用用完后调 ask 得到 403 时为 True
 ```
 
 `FAError` 是 `deepxiv_sdk.APIError` 的子类。
