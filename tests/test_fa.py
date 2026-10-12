@@ -352,6 +352,12 @@ class TestFaCli:
         r = run("ask", "q", "-d", "talent", "--no-stream")
         assert "[3426] Yann LeCun" in r.stderr
 
+    def test_search_sort_is_sent(self, fake):
+        s = fake(FakeResponse(body=SEARCH_BODY))
+        r = run("search", "cve", "", "--sort", "epss")
+        assert r.exit_code == 0, r.output
+        assert s.calls[0]["json"]["sort"] == "epss"
+
     def test_ask_case_sources_show_verdict_number_and_court(self, fake):
         fake(FakeResponse(body={"answer": "a", "sources": {"cases": [{
             "uuid": "1ba65c9f", "verdictno": "（2018）辽1202刑初37号", "cause": "侵犯公民个人信息罪",

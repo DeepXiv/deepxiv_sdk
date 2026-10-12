@@ -1655,7 +1655,7 @@ def _fa_text(value):
 
 
 # Brief fields differ per domain; these are tried in order.
-_FA_TITLE_KEYS = ("name_line", "name", "title", "law_title", "brief_title", "spl_name", "company_name",
+_FA_TITLE_KEYS = ("name_line", "name", "title", "case_name", "law_title", "brief_title", "spl_name", "company_name",
                   "resolved_title", "citation", "cause", "affected")
 _FA_SUMMARY_KEYS = ("one_liner_zh", "summary_zh", "one_liner", "summary", "role")
 _FA_STAT_KEYS = (("h_index", "h-index"), ("citations_all", "citations"), ("severity", "severity"),
@@ -1781,9 +1781,10 @@ def fa_spec(domain, token, json_output):
 @click.option("--offset", default=None, type=click.IntRange(0), help="Pagination offset")
 @click.option("--mode", default=None, help="Retrieval mode, e.g. hybrid / dense / bm25 / name")
 @click.option("--head", is_flag=True, help="Richer hits (fields=head; costs more)")
+@click.option("--sort", default=None, help="Sort order, e.g. date / epss for cve (choices: deepxiv fa spec DOMAIN)")
 @_FA_TOKEN_OPTION
 @_FA_JSON_OPTION
-def fa_search(domain, query, filters, top_k, offset, mode, head, token, json_output):
+def fa_search(domain, query, filters, top_k, offset, mode, head, sort, token, json_output):
     """Search one domain.
 
     \b
@@ -1792,6 +1793,7 @@ def fa_search(domain, query, filters, top_k, offset, mode, head, token, json_out
         deepxiv fa search talent "deep learning" -F "org=University of Toronto" --top-k 5
         deepxiv fa search talent "RAG" -F h_index>=30 -F career_stage=junior,senior
         deepxiv fa search law "个人信息保护" --json
+        deepxiv fa search cve "" -F kev=true -F severity=critical --sort epss
     """
     client = _fa_client(token)
     filter_dict = None
@@ -1805,7 +1807,7 @@ def fa_search(domain, query, filters, top_k, offset, mode, head, token, json_out
 
     result = _run_fa_call(lambda: client.search(
         domain, query, top_k=top_k, offset=offset, mode=mode,
-        filters=filter_dict, fields="head" if head else None,
+        filters=filter_dict, fields="head" if head else None, sort=sort,
     ))
     if json_output:
         click.echo(json.dumps(result, indent=2, ensure_ascii=False))
