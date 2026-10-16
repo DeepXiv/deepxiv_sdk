@@ -2,7 +2,7 @@
 <p align="center"><em>The data layer agentic search is missing — full paper text, real citations, and the people behind them.</em></p>
 
 <p align="center">
-  <a href="https://deepxiv.com">Live system</a> ·
+  <a href="https://1stauthor.com/assistant/">Live system</a> ·
   <a href="USAGE.md">Full documentation</a> ·
   <a href="https://data.rag.ac.cn/api/docs">API docs</a> ·
   <a href="https://data.rag.ac.cn/status">Status</a> ·
