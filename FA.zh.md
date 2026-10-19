@@ -54,7 +54,7 @@ token 有两种：
 
 | 域 | 内容 | ID 字段 | `fa ask` |
 |---|---|---|---|
-| `stocks` 🆕 | **8000+ 支美股：行情、个股新闻与 LLM 聚合事件、SEC 公告、XBRL 财务、宏观序列与简报，全部支持时点还原**（[见下](#美股stocks)） | 股票代码 / 记录 id | — |
+| `stocks` 🆕 | **8000+ 支美股：行情、个股新闻与 LLM 聚合事件、SEC 公告、XBRL 财务、宏观序列与简报，全部支持时点还原**（[见下](#美股stocks)） | 股票代码 / 记录 id | ✅ |
 | `talent` | 约 19 万 AI 研究者，约 16 万份调查档案（教育、履历、代表作、开源），Google Scholar 指标实时渲染 | `person_id` | ✅ |
 | `law` | 26 个法域约 3.3 万部法规 / 150 万条，按条检索，附中译和逐条抽取 | `law_id` | ✅ |
 | `us_law` | 美国 53 个法域约 500 万条条款级文本：成文法、联邦法规（CFR）、会期法、机构裁决、指引、法院规则 | `law_id` | ✅ |
@@ -70,7 +70,7 @@ token 有两种：
 | `fr` | 1994 年以来约 100 万篇美国联邦公报 | `doc_id` | ✅ |
 | `appraise` | 一篇论文被哪些院士 / 会士引用过、他们原话怎么说 | `target_key` | ✅ |
 
-除 `stocks` 外所有域都支持 `fa ask`。law、talent、appraise 有各自专门的 agent；其余域共用一个通用 agent，它把问题翻成该域的过滤条件加关键词，所以只有数据库的域（cve、fr）也能问答。`cases` 用 law 的 agent。`standards` 只有目录元数据，它的 ask 会先说明答不了条文正文。
+所有域都支持 `fa ask`。law、talent、appraise 有各自专门的 agent；其余域共用一个通用 agent，它把问题翻成该域的过滤条件加关键词，所以只有数据库的域（cve、fr）也能问答。`cases` 用 law 的 agent。`standards` 只有目录元数据，它的 ask 会先说明答不了条文正文。
 
 以上为实时列表的快照：`deepxiv fa domains` 显示当前的域和规模，`deepxiv fa spec <域>` 描述某个域。论文和网页不在这里，它们走 deepxiv 原生命令（`deepxiv search`、`paper`、`ask`）。
 
@@ -99,7 +99,7 @@ deepxiv fa read stocks macro:CPIAUCSL                            # 单个宏观�
 - **`as_of`** 回到任意时点：`read` 用 `-p as_of=…`，`search` 用 `-F as_of=…`。只返回那个时点已经可见的数据（行情在美东 16:00 收盘后可见，公告按受理时间，宏观按 ALFRED 版本），回测不会穿越。
 - **引用**：记录 id 原样引用（`px:…`、`evt_…`、`news:…`、`filing:…`、`fin:…`、`macro:…@版本`），并注明每条记录的 `license`。
 - **覆盖缺口**：新闻从 2026-04-19 开始；内部人交易（Form 4）历史 2026-10-23 才补齐，在那之前 `insiders` 为空不代表"没有内部人交易"；IEX 分钟线只覆盖重点股票、从 2026-10-16 开始；财务只覆盖提交 SEC XBRL 的公司（不含 ADR 和基金）；分析师信号来自新闻态度，没有券商数据源。
-- `stocks` 只提供数据，没有 `fa ask`。搜索、读取之后，由你的 agent 写分析。
+- **问答**：`deepxiv fa ask "CoreWeave 最近一周为什么大跌？结合价格、新闻和财报说明" -d stocks`。stocks 的 agent 会按需拉取行情、新闻、事件、公告、内部人交易、财务和宏观，引用上游记录 id（`[stocks:px:CRWV:2026-10-16]`、`[stocks:news:…]`），问过去某个时点会按那个时点回答，答案末尾附数据来源和「不构成投资建议」。
 
 ## 3. 快速上手
 

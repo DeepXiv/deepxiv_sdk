@@ -54,7 +54,7 @@ There are two kinds of token:
 
 | Domain | What's in it | ID field | `fa ask` |
 |---|---|---|---|
-| `stocks` 🆕 | **8,000+ US tickers: prices, per-ticker news and LLM-clustered events, SEC filings, XBRL financials, macro series and digests, all point-in-time** ([below](#us-stocks-stocks-)) | ticker / record id | — |
+| `stocks` 🆕 | **8,000+ US tickers: prices, per-ticker news and LLM-clustered events, SEC filings, XBRL financials, macro series and digests, all point-in-time** ([below](#us-stocks-stocks-)) | ticker / record id | ✅ |
 | `talent` | ~190k AI researchers; ~160k researched profiles (education, career, representative papers, open source), with live Google Scholar metrics | `person_id` | ✅ |
 | `law` | ~33k statutes / 1.5M articles from 26 jurisdictions, searched article by article, with Chinese translations and per-article extraction | `law_id` | ✅ |
 | `us_law` | ~5M clause-level US provisions across 53 jurisdictions: statutes, regulations (CFR), session laws, agency decisions, guidance, court rules | `law_id` | ✅ |
@@ -70,7 +70,7 @@ There are two kinds of token:
 | `fr` | ~1M Federal Register documents since 1994 | `doc_id` | ✅ |
 | `appraise` | Which academicians and society fellows cited a paper, and what they said about it | `target_key` | ✅ |
 
-Every domain except `stocks` supports `fa ask`. law, talent and appraise have their own agents. The others share one agent that turns the question into the domain's filters plus keywords, so it works even for domains backed only by a database (cve, fr). `cases` uses law's agent. `standards` holds catalogue metadata only, so its ask says up front that it can't quote clause text.
+Every domain supports `fa ask`. law, talent and appraise have their own agents. The others share one agent that turns the question into the domain's filters plus keywords, so it works even for domains backed only by a database (cve, fr). `cases` uses law's agent. `standards` holds catalogue metadata only, so its ask says up front that it can't quote clause text.
 
 The list is live: `deepxiv fa domains` shows the current domains and sizes, and `deepxiv fa spec <domain>` describes one domain. Papers and the web aren't here because deepxiv serves them natively (`deepxiv search`, `paper`, `ask`).
 
@@ -99,7 +99,7 @@ deepxiv fa read stocks macro:CPIAUCSL                            # one macro ser
 - **`as_of`** replays any moment: `-p as_of=…` on `read`, `-F as_of=…` on `search`. Only data visible at that time comes back (prices after the 16:00 ET close, filings from acceptance, macro by ALFRED vintage), so backtests don't see the future.
 - **Citing**: quote record ids as returned (`px:…`, `evt_…`, `news:…`, `filing:…`, `fin:…`, `macro:…@vintage`) and note each record's `license`.
 - **Coverage gaps**: news starts 2026-04-19; insider (Form 4) history arrives 2026-10-23, so an empty `insiders` list before then is not "no insider trading"; IEX minute bars cover a focus list from 2026-10-16; financials cover SEC XBRL filers only (no ADRs or funds); analyst signals come from news tone, not a broker feed.
-- `stocks` is data only: no `fa ask`. Search and read, then let your agent write the analysis.
+- **Ask**: `deepxiv fa ask "CoreWeave 最近一周为什么大跌？结合价格、新闻和财报说明" -d stocks`. The stocks agent pulls prices, news, events, filings, insider trades, financials and macro as needed. It cites upstream record ids (`[stocks:px:CRWV:2026-10-16]`, `[stocks:news:…]`) and answers a question about a past moment as of that moment. Answers end with the data sources and a not-investment-advice note.
 
 ## 3. Quick start
 

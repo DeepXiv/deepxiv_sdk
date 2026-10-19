@@ -28,7 +28,7 @@
 | **问网页** | `deepxiv ask --web` | 同上，数据来自 Google 加缓存页面正文 |
 | **分层读论文** | `deepxiv search` / `paper` | 先搜、再判断、最后只读需要的那一节 |
 | **找人** | `deepxiv fa … talent` | 谁在做这个方向、人在哪、履历如何 |
-| **看美股** 🆕 | `deepxiv fa … stocks` | 8000+ 支美股：行情、个股新闻、公告、财务、宏观，支持时点还原 |
+| **看美股** 🆕 | `deepxiv fa … stocks` | 8000+ 支美股：行情、个股新闻、公告、财务、宏观，支持时点还原；`fa ask -d stocks` 直接出带引用的分析 |
 | **论文之外** | `deepxiv fa` | 法规、判决、临床试验、药品、基金、公告、标准、CVE —— 经 1stAuthor |
 
 ## 解决什么问题
@@ -92,9 +92,12 @@ deepxiv fa search stocks "chip export restrictions" -k 5         # 新闻 + 事�
 deepxiv fa search stocks "earnings guidance" -F ticker=TSLA -F source=events
 deepxiv fa read stocks digest:macro                              # 当日宏观数据发布、利率、汇率、大宗商品
 deepxiv fa read stocks macro:CPIAUCSL                            # 宏观序列，含历史版本和 nowcast
+
+# 或者直接问：agent 自己拉行情、新闻、事件、公告、财报和宏观，每个数字都带引用
+deepxiv fa ask "CoreWeave 最近一周为什么大跌？结合价格、新闻和财报说明" -d stocks
 ```
 
-`stocks` 只提供数据（`search` / `read`，没有 `ask`）。`deepxiv fa spec stocks` 列出数据源、过滤条件和 extra。
+**`fa ask -d stocks` 已上线**：按主题找公司，问个股的涨跌与新闻面、事件、内部人交易、财务、宏观，答案引用上游记录 id（`[stocks:px:CRWV:2026-10-16]`、`[stocks:news:…]`、`[stocks:fin:…]`）。问过去某个时点会自动按那个时点回答，答案末尾附数据来源和「不构成投资建议」。`deepxiv fa spec stocks` 列出数据源、过滤条件和 extra。
 
 DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费**。如需更大额度的 1stAuthor 相关服务，可以到 [1stauthor.com](https://1stauthor.com) 看看。
 
