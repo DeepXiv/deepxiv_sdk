@@ -252,7 +252,7 @@ deepxiv fa resolve "Geoffrey Hinton" "Yann LeCun" "Yoshua Bengio"
 deepxiv fa ask QUESTION [-d DOMAIN] [-e EFFORT] [-p k=v]... [--no-stream] [--no-sources] [-v] [--json]
 ```
 
-A cited answer. An agent searches and reads the domain for you. **Needs a registered key** (300/day free). The auto-registered SDK token gets **3 lifetime trial asks**; stderr shows `🎟️ 试用剩余 2/3 次 · Free trial: 2 of 3 asks left`, and once they are used up the call fails with 403 and the server's message.
+A cited answer. An agent searches and reads the domain for you. **Needs a registered key**, and draws on 1stAuthor's **daily ask allowance** (resets at 00:00 UTC; a site-wide daily total can run out early at peak times). The auto-registered SDK token gets **3 lifetime trial asks**; stderr shows `🎟️ 试用剩余 2/3 次 · Free trial: 2 of 3 asks left`, and once they are used up the call fails with 403 and the server's message.
 
 | Option | |
 |---|---|
@@ -360,15 +360,15 @@ deepxiv fa search talent "Geoffrey Hinton" --json | jq '.hits[0].id'
 | Call | Pool | Price |
 |---|---|---|
 | `domains`, `spec`, `whoami` | — | free |
-| `search` | general daily limit | 2 (3 with `--head`) |
-| `read` | general daily limit | by level / extra / format; `spec` lists every price (talent: brief 1, detail 3, full 10, extras 1–20) |
+| `search` | registered key: fair use; SDK token: general daily limit | 2 (3 with `--head`) |
+| `read` | registered key: fair use; SDK token: general daily limit | by level / extra / format; `spec` lists every price (talent: brief 1, detail 3, full 10, extras 1–20) |
 | `facets` | general daily limit | 1 |
 | `resolve` | general daily limit | 2 |
-| `ask` | agentic quota (shared with `deepxiv ask`) | 1 call, whatever the domain or effort; registered key (300/day), or 3 lifetime trial calls on an SDK token |
+| `ask` | registered key: 1stAuthor's daily ask allowance; SDK token: 3 lifetime trial calls | — |
 
-- The general daily limit is 1,000 for an auto-registered token and 10,000 for a registered key. Registered keys also get 300 agentic calls/day free. See [USAGE.md § Tokens and limits](USAGE.md#tokens-and-limits).
+- During the beta, a registered key uses the 1stAuthor domains on the same terms as 1stAuthor's own users. `fa search` / `read` are fair use, rate-limited to 60 requests a minute, 5 at once and 5,000 a day, and don't count against the deepxiv daily limit; `talent` also has a daily read limit on profile content. `fa ask` draws on the daily ask allowance, which resets at 00:00 UTC. When it runs out you'll see "今日 AI 问答额度已用完"; a site-wide daily total can also run out early at peak times.
+- On an auto-registered token, `fa` calls draw on the general daily limit (1,000) at the prices above. `deepxiv ask` (papers) keeps its own 300 calls/day on a registered key. See [USAGE.md § Tokens and limits](USAGE.md#tokens-and-limits).
 - After each paid call, the CLI prints `💳 cost N · remaining/limit left today` to stderr, and warns when 20 or fewer remain.
-- `fa ask` warns when 5 or fewer agentic calls remain (`-v` always shows the count).
 - Each key can run at most **4 `ask` calls at once**.
 - 1stAuthor's free sample queries and IDs (`spec` → `free_samples`) cost 0.
 - For higher limits on the 1stAuthor domains, see [1stauthor.com](https://1stauthor.com).
@@ -381,9 +381,9 @@ The CLI explains each of these on stderr and exits 1:
 |---|---|---|
 | `fa ask` 403 with the server's message (trial used up, today's trials all taken, or key not eligible) | The SDK token's 3 trial asks are spent, or the site-wide daily trial pool is full | Register, then `deepxiv config --token …` |
 | Authentication failed (401) | Token missing or invalid | `deepxiv token`, or set `DEEPXIV_TOKEN` |
+| 今日 AI 问答额度已用完 | The daily ask allowance is used up, or the site-wide daily total ran out at a peak | Wait for 00:00 UTC |
 | Daily usage limit reached | 429: general daily limit used up | Wait for tomorrow or register for a higher limit |
-| Too many concurrent requests, retry in Ns | 429 with `Retry-After`: more than 4 `ask` calls at once | Wait as told |
-| Rate-limited by 1stAuthor | 429 from 1stAuthor's per-user throttle | Slow down |
+| 429 with `请 N 秒后重试 / Retry in Ns` | Over a rate limit: 60 a minute or 5 at once for `fa search` / `read`, or too many `ask` calls at once | Back off for the `Retry-After` seconds |
 | `HTTP 400 invalid_request: …` plus a list | Bad extra, level, view or filter | Pick from the list printed below the error |
 | `HTTP 404 …` | No document with that ID | Get IDs from `search` / `resolve` |
 | `❌ <code>: <message> (quota refunded)` after a partial answer | The `ask` agent failed mid-stream | Retry; the quota was refunded if the message says so |

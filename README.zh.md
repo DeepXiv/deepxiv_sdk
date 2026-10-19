@@ -114,13 +114,21 @@ pip install deepxiv-sdk
 
 `deepxiv fa`（1stAuthor 垂域，含 talent）需要 1.2.0 及以上：`pip install -U deepxiv-sdk`。
 
-`deepxiv` 首次使用会自动注册一个 token。agentic 命令（`ask`、`fa ask`）需要注册过的 key（每天免费 300 次）；自动注册的 token 可以试用 3 次 `fa ask`（终身）。在 [data.rag.ac.cn/register](https://data.rag.ac.cn/register) 领一个 key，然后：
+`deepxiv` 首次使用会自动注册一个 token。agentic 命令（`ask`、`fa ask`）需要注册过的 key；自动注册的 token 可以试用 3 次 `fa ask`（终身）。在 [data.rag.ac.cn/register](https://data.rag.ac.cn/register) 领一个 key，然后：
 
 ```bash
 deepxiv config --token YOUR_REGISTERED_KEY
 ```
 
-每个账号每天有 300 次免费的 agentic 调用，这份额度与通用 daily limit 相互独立。
+内测期间，注册 key 通过 `deepxiv fa …` 使用 1stAuthor，和 1stAuthor 自己的用户同等待遇：
+
+- **`deepxiv fa ask`** 消耗**每日 AI 问答额度**，UTC 0 点重置；用完会提示「今日 AI 问答额度已用完」。全站也有每日总量，高峰时可能提前用完。
+- **`deepxiv fa search` / `read`** 合理使用，按速率限制：每分钟 60 次、同时 5 个、每天 5,000 次。
+- **`talent`** 另有每日读取上限（只限档案内容，检索和卡片不限）。
+- **自动注册的 token** 保持现状：`fa ask` 可试用 3 次（终身），之后提示去 [data.rag.ac.cn/register](https://data.rag.ac.cn/register) 注册。
+- **收到 429** 时按 `Retry-After` 给出的秒数退避。
+
+`deepxiv ask`（论文问答）是 DeepXiv 自己的服务，规则不变：注册 key 每天 300 次，与通用 daily limit 相互独立。
 
 ## 用法
 

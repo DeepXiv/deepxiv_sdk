@@ -28,13 +28,13 @@ reader = Reader(token=os.environ["DEEPXIV_TOKEN"])
 
 deepxiv resolves the token from `--token`, then `DEEPXIV_TOKEN`, then `~/.env`. On first use it auto-registers one.
 
-| | Daily limit | Agentic calls (`ask`, `fa ask`) | How to get |
+| | Daily limit | Agentic calls (`ask`; `fa ask` see below) | How to get |
 |---|---|---|---|
 | Auto-registered | 1,000 requests | ❌ not eligible | Automatic on first CLI use |
 | Registered | 10,000 requests | ✅ 300/day | [data.rag.ac.cn/register](https://data.rag.ac.cn/register) |
 | Custom | Contact us | Contact us | Email `tommy[at]chien.io` |
 
-The two pools are independent: agentic calls don't consume your general limit, and vice versa. Lost your key? Recover it at [data.rag.ac.cn/token-lookup](https://data.rag.ac.cn/token-lookup).
+The two pools are independent: agentic calls don't consume your general limit, and vice versa. `deepxiv fa` has its own terms for registered keys: a daily ask allowance for `fa ask` and fair use for `fa search` / `read`; see [FA.md § Cost and quota](FA.md#8-cost-and-quota). Lost your key? Recover it at [data.rag.ac.cn/token-lookup](https://data.rag.ac.cn/token-lookup).
 
 Free test papers (no token) — arXiv: `2409.05591`, `2504.21776`; PMC: `PMC544940`.
 

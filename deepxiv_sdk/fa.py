@@ -276,11 +276,12 @@ class FAClient:
     ``meta.quota`` ({cost, used, daily_limit, remaining}); the raw quota
     headers of the last call are in :attr:`last_quota`.
 
-    Billing: search/read/facets/resolve draw on the general daily limit at
-    1stAuthor's prices; ``domains``, ``spec`` and ``whoami`` are free. ``ask``
-    draws on the agentic quota: a registered account key (300/day), or 3
-    lifetime trial asks on the token the SDK auto-registers; after that it
-    gets a 403 (:attr:`FAError.needs_registered_key`).
+    Limits: ``domains``, ``spec`` and ``whoami`` are free. With a registered
+    key, search/read/facets/resolve are fair use (60/min, 5 at once,
+    5,000/day) and ``ask`` draws on 1stAuthor's daily ask allowance, reset at
+    00:00 UTC. The token the SDK auto-registers gets 3 lifetime trial asks;
+    after that ``ask`` returns 403 (:attr:`FAError.needs_registered_key`).
+    On 429, back off for ``retry_after`` seconds.
 
     Example:
         >>> fa = FAClient(token="your_deepxiv_token")
