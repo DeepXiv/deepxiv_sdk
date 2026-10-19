@@ -204,6 +204,7 @@ people = reader.fa().search("talent", "speculative decoding", top_k=5)
 - **[USAGE.zh.md](USAGE.zh.md)** —— 完整的 CLI 参考、Python API、流式、错误处理、批量、内置 research agent。（[English](USAGE.md)）
 - **[FA.zh.md](FA.zh.md)**：`deepxiv fa`，即 1stAuthor 垂域（talent、law、cases、trials、drugs、grants、filings、standards、CVE 等）的命令、过滤、价格、错误处理和 Python 用法。（[English](FA.md)）
 - **[skills/deepxiv-cli/SKILL.md](skills/deepxiv-cli/SKILL.md)** —— 给编码 agent 的即插即用操作说明。另有两个成型的工作流 skill：[热点摘要](skills/deepxiv-trending-digest/SKILL.md)、[baseline 表格](skills/deepxiv-baseline-table/SKILL.md)。
+- **`skills/deepxiv-fa-*`** —— 每个 1stAuthor 垂域一个 skill（如 [stocks](skills/deepxiv-fa-stocks/SKILL.md)、[talent](skills/deepxiv-fa-talent/SKILL.md)、[law](skills/deepxiv-fa-law/SKILL.md)）：过滤条件、读取级别、extra 和实测过的命令，全部写成 `deepxiv fa` 命令，由 `scripts/gen_fa_skills.py` 从线上 spec 生成。索引：[fa-domains.md](skills/deepxiv-cli/references/fa-domains.md)。
 - **[examples/](examples/)** —— 每个入口的可运行脚本。
 
 还支持 PubMed Central、bioRxiv/medRxiv、热点论文以及单篇论文的社交指标 —— 见 [USAGE.zh.md](USAGE.zh.md#其他数据源)。

@@ -56,7 +56,7 @@ class FAError(APIError):
     def needs_registered_key(self) -> bool:
         """True when the call is reserved for registered keys (SDK tokens get 403)."""
         msg = self.message.lower()
-        return self.status == 403 and ("registered account key" in msg or "trial" in msg)
+        return self.status == 403 and ("registered account key" in msg or "ask trial" in msg)
 
     def __str__(self) -> str:
         head = f"HTTP {self.status}" if self.status else "error"

@@ -204,6 +204,7 @@ people = reader.fa().search("talent", "speculative decoding", top_k=5)
 - **[USAGE.md](USAGE.md)** — full CLI reference, the Python API, streaming, error handling, batching, and the built-in research agent. ([中文](USAGE.zh.md))
 - **[FA.md](FA.md)**: `deepxiv fa`, the 1stAuthor domains (talent, law, cases, trials, drugs, grants, filings, standards, CVEs, …): commands, filters, prices, errors, Python. ([中文](FA.zh.md))
 - **[skills/deepxiv-cli/SKILL.md](skills/deepxiv-cli/SKILL.md)** — drop-in operating instructions for coding agents. Two worked workflows also ship as skills: [trending digest](skills/deepxiv-trending-digest/SKILL.md), [baseline table](skills/deepxiv-baseline-table/SKILL.md).
+- **`skills/deepxiv-fa-*`** — one skill per 1stAuthor domain (e.g. [stocks](skills/deepxiv-fa-stocks/SKILL.md), [talent](skills/deepxiv-fa-talent/SKILL.md), [law](skills/deepxiv-fa-law/SKILL.md)): filters, read levels, extras and verified recipes as `deepxiv fa` commands, generated from the live spec by `scripts/gen_fa_skills.py`. Index: [fa-domains.md](skills/deepxiv-cli/references/fa-domains.md).
 - **[examples/](examples/)** — runnable scripts for each entry point.
 
 Also available: PubMed Central, bioRxiv/medRxiv, trending papers, and per-paper social metrics — see [USAGE.md](USAGE.md#other-sources).

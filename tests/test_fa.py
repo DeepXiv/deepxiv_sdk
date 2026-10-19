@@ -408,6 +408,13 @@ class TestFaCli:
         assert "[evt_1] TSLA · guidance" in r.stdout and "time: 2026-06-20" in r.stdout
         assert "[filing:1] 8-K" in r.stdout
 
+    def test_domain_scope_403_is_not_a_trial_error(self, fake):
+        fake(FakeResponse(status=403, body={"error": {"code": "forbidden", "message":
+            "this key is scoped to ['talent', 'trials', 'cve']; 'osv' not allowed"}}))
+        r = run("search", "osv", "x")
+        assert r.exit_code == 1
+        assert "'osv' not allowed" in r.stderr and "register" not in r.stderr.lower()
+
     def test_whoami_trial(self, fake):
         fake(FakeResponse(body={"source": "sdk", "name": "sdk-1", "quota": {"used": 1, "daily_limit": 1000, "remaining": 999},
                                 "agent": {"tier": "trial", "trial_limit": 3, "used": 1, "remaining": 2},
