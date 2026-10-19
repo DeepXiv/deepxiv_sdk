@@ -28,6 +28,7 @@
 | **问网页** | `deepxiv ask --web` | 同上，数据来自 Google 加缓存页面正文 |
 | **分层读论文** | `deepxiv search` / `paper` | 先搜、再判断、最后只读需要的那一节 |
 | **找人** | `deepxiv fa … talent` | 谁在做这个方向、人在哪、履历如何 |
+| **看美股** 🆕 | `deepxiv fa … stocks` | 8000+ 支美股：行情、个股新闻、公告、财务、宏观，支持时点还原 |
 | **论文之外** | `deepxiv fa` | 法规、判决、临床试验、药品、基金、公告、标准、CVE —— 经 1stAuthor |
 
 ## 解决什么问题
@@ -38,18 +39,20 @@ DeepXiv 把这个取舍消掉。论文是预先解析好的，agent 可以先花
 
 ## DeepXiv × 1stAuthor
 
-DeepXiv 与 [1stAuthor](https://1stauthor.com) 深度合作，提供论文之外的多领域数据服务：学者、法规、裁判文书、临床试验、药品、基金、公告、标准、CVE 等，都可以用同一个 token 通过 `deepxiv fa` 访问。**→ [`deepxiv fa` 使用文档](FA.zh.md)**
+DeepXiv 与 [1stAuthor](https://1stauthor.com) 深度合作，提供论文之外的多领域数据服务：学者、美股、法规、裁判文书、临床试验、药品、基金、公告、标准、CVE 等，都可以用同一个 token 通过 `deepxiv fa` 访问。**→ [`deepxiv fa` 使用文档](FA.zh.md)**
 
-一个 CLI，十二个垂域，同一套动词：`search` → `read` → `ask`。
+一个 CLI，十五个垂域，同一套动词：`search` → `read` → `ask`。
 
 | 域 | 内容 |
 |---|---|
+| **`stocks`** 🆕 | **8000+ 支美股：行情、个股新闻与事件、SEC 公告、财务、宏观序列与宏观新闻，全部支持时点还原** |
 | `talent` | AI 学者档案：教育、履历、代表作、指标 |
 | `appraise` | 院士和 Fellow 引用一篇论文时的评价 |
-| `law` · `us_law` · `fr` | 中国及其它 25 个法域的法律法规；美国法典、联邦法规、Federal Register |
+| `law` · `us_law` · `uk_eu_law` · `fr` | 中国及其它 25 个法域的法律法规；美国法典与联邦法规；英国与欧盟立法；Federal Register |
 | `cases` | 中美法院判决 |
 | `trials` · `drugs` · `grants` | ClinicalTrials.gov 临床试验、openFDA 药品说明书、NSF / NIH 基金 |
-| `filings` · `standards` · `cve` | SEC 与国内上市公司公告、国家标准、NVD + CISA KEV + EPSS 漏洞 |
+| `filings` · `standards` | SEC 与国内上市公司公告、国家标准 |
+| `cve` · `osv` | NVD + CISA KEV + EPSS 漏洞；开源包安全公告与恶意包报告 |
 
 > **建议指定 `--domain`（`-d`）。** 自动选域（`fa ask` 不加 `-d`）还在早期开发阶段，可能选错域。请自己指定域：`deepxiv fa domains` 列出全部，`deepxiv fa spec DOMAIN` 查看可用过滤条件。
 
@@ -74,6 +77,24 @@ deepxiv fa search cve "*" -F kev=true -F severity=critical,high --sort epss -k 1
 deepxiv fa ask "个人信息出境需要满足什么条件" -d law
 deepxiv fa ask "DeepSeek-R1 得到了哪些院士的正面评价" -d appraise -p paper=arxiv:2501.12948
 ```
+
+### 🆕 美股
+
+`deepxiv fa … stocks` 给 agent 提供带时点还原的美股数据：**8000+ 支股票**的日线行情，**每支股票的新闻**（2026 年 4 月以来 390 万条，去重后聚成约 92 万个事件，并标注正负面），SEC 公告、XBRL 财务，以及**宏观序列与宏观新闻**（CPI、工业产出、美债收益率、汇率、大宗商品，并给出与预期 / nowcast 的对比）。所有查询都支持 `as_of`，只返回那个时点已经可见的数据，回测和"X 日当天我们知道什么"这类问题不会穿越。
+
+```bash
+deepxiv fa read stocks NVDA                                      # 最新价（对比行业 ETF 和 SPY）、近期事件、新闻、公告
+deepxiv fa read stocks NVDA -e news                              # 个股新闻流
+deepxiv fa read stocks NVDA -e financials                        # XBRL 财务（按原始申报口径）
+deepxiv fa read stocks NVDA -p as_of=2026-09-04                  # 回到过去某天的视图（这里能看到收购 Hugging Face 的 8-K）
+deepxiv fa search stocks "AI data center power" -F source=stocks # 一个主题涉及哪些股票
+deepxiv fa search stocks "chip export restrictions" -k 5         # 新闻 + 事件 + 公告混排
+deepxiv fa search stocks "earnings guidance" -F ticker=TSLA -F source=events
+deepxiv fa read stocks digest:macro                              # 当日宏观数据发布、利率、汇率、大宗商品
+deepxiv fa read stocks macro:CPIAUCSL                            # 宏观序列，含历史版本和 nowcast
+```
+
+`stocks` 只提供数据（`search` / `read`，没有 `ask`）。`deepxiv fa spec stocks` 列出数据源、过滤条件和 extra。
 
 DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费**。如需更大额度的 1stAuthor 相关服务，可以到 [1stauthor.com](https://1stauthor.com) 看看。
 
@@ -183,6 +204,7 @@ people = reader.fa().search("talent", "speculative decoding", top_k=5)
 - **[USAGE.zh.md](USAGE.zh.md)** —— 完整的 CLI 参考、Python API、流式、错误处理、批量、内置 research agent。（[English](USAGE.md)）
 - **[FA.zh.md](FA.zh.md)**：`deepxiv fa`，即 1stAuthor 垂域（talent、law、cases、trials、drugs、grants、filings、standards、CVE 等）的命令、过滤、价格、错误处理和 Python 用法。（[English](FA.md)）
 - **[skills/deepxiv-cli/SKILL.md](skills/deepxiv-cli/SKILL.md)** —— 给编码 agent 的即插即用操作说明。另有两个成型的工作流 skill：[热点摘要](skills/deepxiv-trending-digest/SKILL.md)、[baseline 表格](skills/deepxiv-baseline-table/SKILL.md)。
+- **`skills/deepxiv-fa-*`** —— 每个 1stAuthor 垂域一个 skill（如 [stocks](skills/deepxiv-fa-stocks/SKILL.md)、[talent](skills/deepxiv-fa-talent/SKILL.md)、[law](skills/deepxiv-fa-law/SKILL.md)）：过滤条件、读取级别、extra 和实测过的命令，全部写成 `deepxiv fa` 命令，由 `scripts/gen_fa_skills.py` 从线上 spec 生成。索引：[fa-domains.md](skills/deepxiv-cli/references/fa-domains.md)。
 - **[examples/](examples/)** —— 每个入口的可运行脚本。
 
 还支持 PubMed Central、bioRxiv/medRxiv、热点论文以及单篇论文的社交指标 —— 见 [USAGE.zh.md](USAGE.zh.md#其他数据源)。

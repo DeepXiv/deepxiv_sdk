@@ -28,6 +28,7 @@ Four things it does:
 | **Ask the web** | `deepxiv ask --web` | Same, over Google plus cached page bodies |
 | **Read a paper in layers** | `deepxiv search` / `paper` | Search, judge, then read only the section you need |
 | **Find the people** | `deepxiv fa … talent` | Who works on a topic, where, and what their record is |
+| **Watch US stocks** 🆕 | `deepxiv fa … stocks` | 8,000+ tickers: prices, per-ticker news, filings, financials, macro — point-in-time |
 | **Go beyond papers** | `deepxiv fa` | Statutes, judgments, trials, drugs, grants, filings, standards, CVEs — via 1stAuthor |
 
 ## What problem it solves
@@ -38,18 +39,20 @@ DeepXiv removes the tradeoff. Papers are pre-parsed, so an agent can spend 300 t
 
 ## DeepXiv × 1stAuthor
 
-DeepXiv works closely with [1stAuthor](https://1stauthor.com) to serve data beyond papers: researchers, statutes, court judgments, clinical trials, drugs, grants, filings, standards and CVEs, all reached through `deepxiv fa` with the same token. **→ [The `deepxiv fa` guide](FA.md)**
+DeepXiv works closely with [1stAuthor](https://1stauthor.com) to serve data beyond papers: researchers, US stocks, statutes, court judgments, clinical trials, drugs, grants, filings, standards and CVEs, all reached through `deepxiv fa` with the same token. **→ [The `deepxiv fa` guide](FA.md)**
 
-One CLI, twelve domains, the same three verbs: `search` → `read` → `ask`.
+One CLI, fifteen domains, the same three verbs: `search` → `read` → `ask`.
 
 | Domain | What's in it |
 |---|---|
+| **`stocks`** 🆕 | **8,000+ US tickers: prices, per-ticker news and events, SEC filings, financials, macro series and news — all point-in-time** |
 | `talent` | AI researcher profiles: education, career, top papers, metrics |
 | `appraise` | What academicians and fellows said when they cited a paper |
-| `law` · `us_law` · `fr` | Chinese and 25 other jurisdictions' statutes; US statutes, regulations, Federal Register |
+| `law` · `us_law` · `uk_eu_law` · `fr` | Chinese and 25 other jurisdictions' statutes; US statutes and regulations; UK and EU legislation; Federal Register |
 | `cases` | Chinese and US court judgments |
 | `trials` · `drugs` · `grants` | ClinicalTrials.gov, openFDA drug labels, NSF / NIH grants |
-| `filings` · `standards` · `cve` | SEC and Chinese company filings, Chinese national standards, NVD + CISA KEV + EPSS |
+| `filings` · `standards` | SEC and Chinese company filings, Chinese national standards |
+| `cve` · `osv` | NVD + CISA KEV + EPSS; open-source package advisories and malicious-package reports |
 
 > **Pass `--domain` (`-d`).** Auto-routing (`fa ask` without `-d`) is still in early development and can pick the wrong domain. Name the domain yourself; `deepxiv fa domains` lists them and `deepxiv fa spec DOMAIN` shows its filters.
 
@@ -74,6 +77,24 @@ deepxiv fa search cve "*" -F kev=true -F severity=critical,high --sort epss -k 1
 deepxiv fa ask "个人信息出境需要满足什么条件" -d law
 deepxiv fa ask "DeepSeek-R1 得到了哪些院士的正面评价" -d appraise -p paper=arxiv:2501.12948
 ```
+
+### 🆕 US stocks
+
+`deepxiv fa … stocks` gives an agent point-in-time US equity data: **8,000+ tickers** with daily prices, **per-ticker news** (3.9M stories since April 2026, deduplicated and clustered into ~920k events with a tone label), SEC filings, XBRL financials, and **macro series and news** (CPI, industrial production, Treasury yields, FX, commodities, with consensus/nowcast comparisons). Every query takes `as_of`, which returns only what was visible at that moment — so backtests and "what did we know on day X" questions don't leak the future.
+
+```bash
+deepxiv fa read stocks NVDA                                      # price vs sector & SPY, recent events, news, filings
+deepxiv fa read stocks NVDA -e news                              # the ticker's news feed
+deepxiv fa read stocks NVDA -e financials                        # XBRL financials, as filed
+deepxiv fa read stocks NVDA -p as_of=2026-09-04                  # the same view as of a past day (here: the Hugging Face deal 8-K)
+deepxiv fa search stocks "AI data center power" -F source=stocks # which tickers a theme touches
+deepxiv fa search stocks "chip export restrictions" -k 5         # news + events + filings, ranked together
+deepxiv fa search stocks "earnings guidance" -F ticker=TSLA -F source=events
+deepxiv fa read stocks digest:macro                              # today's macro releases, rates, FX, commodities
+deepxiv fa read stocks macro:CPIAUCSL                            # a macro series with vintages and nowcast
+```
+
+`stocks` is data only (`search` / `read`, no `ask`). `deepxiv fa spec stocks` lists sources, filters and extras.
 
 DeepXiv itself stays focused on agentic data services for academic papers, and **will remain free**. If you need higher limits on the 1stAuthor domains, see [1stauthor.com](https://1stauthor.com).
 
@@ -183,6 +204,7 @@ people = reader.fa().search("talent", "speculative decoding", top_k=5)
 - **[USAGE.md](USAGE.md)** — full CLI reference, the Python API, streaming, error handling, batching, and the built-in research agent. ([中文](USAGE.zh.md))
 - **[FA.md](FA.md)**: `deepxiv fa`, the 1stAuthor domains (talent, law, cases, trials, drugs, grants, filings, standards, CVEs, …): commands, filters, prices, errors, Python. ([中文](FA.zh.md))
 - **[skills/deepxiv-cli/SKILL.md](skills/deepxiv-cli/SKILL.md)** — drop-in operating instructions for coding agents. Two worked workflows also ship as skills: [trending digest](skills/deepxiv-trending-digest/SKILL.md), [baseline table](skills/deepxiv-baseline-table/SKILL.md).
+- **`skills/deepxiv-fa-*`** — one skill per 1stAuthor domain (e.g. [stocks](skills/deepxiv-fa-stocks/SKILL.md), [talent](skills/deepxiv-fa-talent/SKILL.md), [law](skills/deepxiv-fa-law/SKILL.md)): filters, read levels, extras and verified recipes as `deepxiv fa` commands, generated from the live spec by `scripts/gen_fa_skills.py`. Index: [fa-domains.md](skills/deepxiv-cli/references/fa-domains.md).
 - **[examples/](examples/)** — runnable scripts for each entry point.
 
 Also available: PubMed Central, bioRxiv/medRxiv, trending papers, and per-paper social metrics — see [USAGE.md](USAGE.md#other-sources).
