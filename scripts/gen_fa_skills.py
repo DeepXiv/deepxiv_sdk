@@ -123,6 +123,7 @@ RECIPES = {
         ('deepxiv fa search stocks "earnings guidance" -F ticker=TSLA -F source=events', None),
         ("deepxiv fa read stocks digest:macro", "today's macro releases, rates, FX, commodities"),
         ("deepxiv fa read stocks macro:CPIAUCSL", "a macro series with vintages and nowcast"),
+        ('deepxiv fa ask "CoreWeave 最近一周为什么大跌？结合价格、新闻和财报说明" -d stocks', "cited analysis"),
     ],
     "standards": [
         ('deepxiv fa search standards "锂离子电池安全" -F state=现行 -k 5', None),

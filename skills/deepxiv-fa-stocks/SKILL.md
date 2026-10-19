@@ -13,7 +13,7 @@ NASDAQ point-in-time US equity data. US equities: prices, news, SEC filings, ins
 pip install -U deepxiv-sdk      # deepxiv registers a token on first use
 ```
 
-`search` and `read` spend the deepxiv daily limit at the credits listed below. Data goes to stdout; cost, quota and sources go to stderr. Exit 0 ok, 1 API error, 2 usage error. The general CLI guide is the `deepxiv-cli` skill.
+`search` and `read` spend the deepxiv daily limit at the credits listed below. `ask` spends the agentic quota: a registered key from https://data.rag.ac.cn/register (300/day), or 3 lifetime trial asks on the auto-registered token. Data goes to stdout; cost, quota and sources go to stderr. Exit 0 ok, 1 API error, 2 usage error. The general CLI guide is the `deepxiv-cli` skill.
 
 ## Start here
 
@@ -27,6 +27,7 @@ deepxiv fa search stocks "chip export restrictions" -k 5   # news + events + fil
 deepxiv fa search stocks "earnings guidance" -F ticker=TSLA -F source=events
 deepxiv fa read stocks digest:macro   # today's macro releases, rates, FX, commodities
 deepxiv fa read stocks macro:CPIAUCSL   # a macro series with vintages and nowcast
+deepxiv fa ask "CoreWeave 最近一周为什么大跌？结合价格、新闻和财报说明" -d stocks   # cited analysis
 ```
 
 Free samples: ids `AAPL`, `NVDA`, `macro:CPIAUCSL`; queries `chip export restrictions`, `cloud server`.
@@ -79,7 +80,13 @@ At `-l full`, `-p section=NAME` reads one section and `-p characters=N` the firs
 
 ## Ask
 
-`stocks` is data only: no `ask`. Search and read, then answer from what you read.
+```bash
+deepxiv fa ask "question" -d stocks [-e low|medium|high] [-p k=v]... [--no-stream] [--json]
+```
+
+Ask about US equities: companies by theme, a ticker's prices and news flow, events, insider trades, financials, macro; questions about a past moment are answered as_of that moment. Citations are upstream record ids ([stocks:<id> title]); answers end with data sources and a not-investment-advice note
+
+Always pass `-d stocks`: automatic domain picking is still early.
 
 ## What this corpus will and will not tell you
 

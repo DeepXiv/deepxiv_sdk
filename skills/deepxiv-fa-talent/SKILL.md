@@ -42,10 +42,10 @@ An empty query is rejected; use `"*"` to list by filters only. Filters combine w
 
 | filter | type | `-F` syntax | meaning |
 |---|---|---|---|
-| `org` | keyword | `k=v`, `k=a,b` | Current organisation, e.g. Tsinghua University; several allowed (past or current: advanced field orgs) |
+| `org` | keyword | `k=v`, `k=a,b` | Current organisation as stored: Chinese institutions under their Chinese name, e.g. 清华大学 (Tsinghua University); several allowed (past or current: advanced field orgs) |
 | `role` | keyword | `k=v`, `k=a,b`, `k~text` | Title: the normalised titles match exactly; anything else (or {"text": …}) is a full-text match on the raw title Values: `教授`, `副教授`, `助理教授`, `研究员`, `博士后`, `博士生`, `硕士生`, `工程师`. |
 | `area` | keyword | `k=v`, `k=a,b` | Research area, e.g. embodied AI, RAG; several allowed |
-| `location` | keyword | `k=v`, `k=a,b` | Location, e.g. Beijing, Singapore; several allowed |
+| `location` | keyword | `k=v`, `k=a,b` | Location as stored: Chinese city names in Chinese, e.g. 北京 (Beijing), 上海 (Shanghai), 香港 (Hong Kong); several allowed. English city names do not match |
 | `min_h_index` | integer | `k=v` | h-index at least |
 | `active_since` | integer | `k=v` | Most recent paper in or after this year (drops inactive people) |
 

@@ -28,7 +28,7 @@ Four things it does:
 | **Ask the web** | `deepxiv ask --web` | Same, over Google plus cached page bodies |
 | **Read a paper in layers** | `deepxiv search` / `paper` | Search, judge, then read only the section you need |
 | **Find the people** | `deepxiv fa … talent` | Who works on a topic, where, and what their record is |
-| **Watch US stocks** 🆕 | `deepxiv fa … stocks` | 8,000+ tickers: prices, per-ticker news, filings, financials, macro — point-in-time |
+| **Watch US stocks** 🆕 | `deepxiv fa … stocks` | 8,000+ tickers: prices, per-ticker news, filings, financials, macro — point-in-time, and `fa ask -d stocks` for a cited analysis |
 | **Go beyond papers** | `deepxiv fa` | Statutes, judgments, trials, drugs, grants, filings, standards, CVEs — via 1stAuthor |
 
 ## What problem it solves
@@ -92,9 +92,12 @@ deepxiv fa search stocks "chip export restrictions" -k 5         # news + events
 deepxiv fa search stocks "earnings guidance" -F ticker=TSLA -F source=events
 deepxiv fa read stocks digest:macro                              # today's macro releases, rates, FX, commodities
 deepxiv fa read stocks macro:CPIAUCSL                            # a macro series with vintages and nowcast
+
+# Or just ask: the agent pulls prices, news, events, filings, financials and macro, and cites every record
+deepxiv fa ask "CoreWeave 最近一周为什么大跌？结合价格、新闻和财报说明" -d stocks
 ```
 
-`stocks` is data only (`search` / `read`, no `ask`). `deepxiv fa spec stocks` lists sources, filters and extras.
+**`fa ask -d stocks` is live**: ask about a theme, a ticker's moves, events, insider trades, financials or macro, and get an answer that cites upstream record ids (`[stocks:px:CRWV:2026-10-16]`, `[stocks:news:…]`, `[stocks:fin:…]`). Questions about a past moment are answered as of that moment. Answers end with the data sources and a not-investment-advice note. `deepxiv fa spec stocks` lists sources, filters and extras.
 
 DeepXiv itself stays focused on agentic data services for academic papers, and **will remain free**. If you need higher limits on the 1stAuthor domains, see [1stauthor.com](https://1stauthor.com).
 
