@@ -390,6 +390,24 @@ class TestFaCli:
         assert "cases:fulltext" in r.stderr and "alternative: GET" in r.stderr
         assert "--level detail" in r.stderr and "Register" not in r.stderr
 
+    def test_facets_null_counts(self, fake):
+        fake(FakeResponse(body={"domain": "stocks", "field": "source",
+                                "values": [{"value": "news", "count": None}, {"value": "events", "count": 3}]}))
+        r = run("facets", "stocks", "source")
+        assert r.exit_code == 0, r.output
+        assert "news" in r.stdout and "3  events" in r.stdout
+
+    def test_stocks_hits_without_title(self, fake):
+        fake(FakeResponse(body={"hits": [
+            {"id": "evt_1", "brief": {"ticker": "TSLA", "event_type": "guidance", "summary": "s",
+                                      "time": "2026-06-20T13:06:50+00:00", "direction_label": "负面"}},
+            {"id": "filing:1", "brief": {"form": "8-K", "one_liner": "o", "time": "2026-09-03T22:00:00-04:00"}},
+        ], "total": 2}))
+        r = run("search", "stocks", "x")
+        assert r.exit_code == 0, r.output
+        assert "[evt_1] TSLA · guidance" in r.stdout and "time: 2026-06-20" in r.stdout
+        assert "[filing:1] 8-K" in r.stdout
+
     def test_whoami_trial(self, fake):
         fake(FakeResponse(body={"source": "sdk", "name": "sdk-1", "quota": {"used": 1, "daily_limit": 1000, "remaining": 999},
                                 "agent": {"tier": "trial", "trial_limit": 3, "used": 1, "remaining": 2},

@@ -1680,11 +1680,14 @@ _FA_STAT_KEYS = (("h_index", "h-index"), ("citations_all", "citations"), ("sever
                  ("verdictno", "case no."), ("form", "form"), ("agency", "agency"),
                  ("sponsor", "sponsor"), ("judge_date", "date"), ("filed_at", "filed"),
                  ("pub_date", "published"), ("issue_date", "issued"), ("start_year", "start"),
-                 ("fy", "FY"))
+                 ("fy", "FY"), ("time", "time"), ("direction_label", "tone"))
 
 
 def _fa_hit_title(brief):
     title = next((_fa_text(brief.get(k)) for k in _FA_TITLE_KEYS if _fa_text(brief.get(k))), "")
+    if not title and (brief.get("event_type") or brief.get("form")):
+        # stocks events and filings carry no title: name them by ticker and event type / form
+        title = " · ".join(str(v) for v in (brief.get("ticker"), brief.get("event_type") or brief.get("form")) if v)
     if brief.get("article"):
         title = f"{title} {brief['article']}".strip()
     heading = brief.get("heading_zh") or brief.get("heading") or brief.get("section_title")
@@ -1703,7 +1706,8 @@ def _print_fa_hit(hit, index):
     for key, label in _FA_STAT_KEYS:
         if brief.get(key) not in (None, "") and label not in seen:
             seen.add(label)
-            stats.append(f"{label}: {brief[key]}")
+            value = str(brief[key])[:10] if key == "time" else brief[key]
+            stats.append(f"{label}: {value}")
     if stats:
         click.echo(f"  {' | '.join(stats[:5])}")
     areas = brief.get("areas") or brief.get("tags") or brief.get("conditions")
@@ -1938,7 +1942,8 @@ def fa_facets(domain, field, limit, token, json_output):
         click.echo(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         for item in result.get("values") or []:
-            click.echo(f"{item.get('count', ''):>10}  {item.get('value')}")
+            count = item.get("count")
+            click.echo(f"{'' if count is None else count:>10}  {item.get('value')}")
     _print_fa_quota(result, client)
 
 
