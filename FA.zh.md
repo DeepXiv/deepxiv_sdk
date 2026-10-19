@@ -2,7 +2,7 @@
 
 > **English**: [FA.md](FA.md) · 返回 [README](README.zh.md)
 
-DeepXiv 与 [1stAuthor](https://1stauthor.com) 深度合作，提供 arXiv 之外的多领域数据服务。`deepxiv fa` **用你的 deepxiv token** 访问 1stAuthor 的垂域：学者、法规、裁判文书、临床试验、药品说明书、科研基金、公司公告、标准、漏洞、美国联邦公报。请求经 `data.rag.ac.cn/fa` 转发，不需要另外申请 1stAuthor 的 key。
+DeepXiv 与 [1stAuthor](https://1stauthor.com) 深度合作，提供 arXiv 之外的多领域数据服务。`deepxiv fa` **用你的 deepxiv token** 访问 1stAuthor 的垂域：学者、**美股**、法规、裁判文书、临床试验、药品说明书、科研基金、公司公告、标准、漏洞、美国联邦公报。请求经 `data.rag.ac.cn/fa` 转发，不需要另外申请 1stAuthor 的 key。
 
 DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费**。如需更大额度的 1stAuthor 相关服务，可以到 [1stauthor.com](https://1stauthor.com) 看看。
 
@@ -54,9 +54,11 @@ token 有两种：
 
 | 域 | 内容 | ID 字段 | `fa ask` |
 |---|---|---|---|
+| `stocks` 🆕 | **8000+ 支美股：行情、个股新闻与 LLM 聚合事件、SEC 公告、XBRL 财务、宏观序列与简报，全部支持时点还原**（[见下](#美股stocks)） | 股票代码 / 记录 id | — |
 | `talent` | 约 19 万 AI 研究者，约 16 万份调查档案（教育、履历、代表作、开源），Google Scholar 指标实时渲染 | `person_id` | ✅ |
 | `law` | 26 个法域约 3.3 万部法规 / 150 万条，按条检索，附中译和逐条抽取 | `law_id` | ✅ |
 | `us_law` | 美国 53 个法域约 500 万条条款级文本：成文法、联邦法规（CFR）、会期法、机构裁决、指引、法院规则 | `law_id` | ✅ |
+| `uk_eu_law` | 约 5.2 万部英国与欧盟法律文件（EUR-Lex 条例、指令、决定；英国议会法与行政法规） | `doc_id` | ✅ |
 | `cases` | 裁判文书：中国约 1,750 万篇 + 美国判例约 344 万篇，附抽取的结构化字段 | `uuid` | ✅（用 law 的 agent） |
 | `trials` | ClinicalTrials.gov 全量临床研究（约 60 万项），抽取了入排标准、生物标志物、既往治疗和摘要 | `nct_id` | ✅ |
 | `drugs` | 约 25.6 万份美国药品说明书（openFDA SPL）：适应症、禁忌、相互作用、黑框警告 | `set_id` | ✅ |
@@ -64,12 +66,40 @@ token 有两种：
 | `filings` | 约 120 万份美股 + A 股公告与监管文书（8-K、10-K/20-F、定期报告、处罚） | `doc_id` | ✅ |
 | `standards` | 约 7.9 万条中国国家标准（GB / GB/T / GB/Z），只有目录元数据，没有正文 | `std_code` | ✅ |
 | `cve` | 约 38.4 万条公开漏洞（NVD），含 CISA KEV 与 EPSS | `doc_id` | ✅ |
+| `osv` | 约 20 万条 CVE 未覆盖的开源包安全公告，九成以上是恶意包报告（npm、PyPI 等） | `doc_id` | ✅ |
 | `fr` | 1994 年以来约 100 万篇美国联邦公报 | `doc_id` | ✅ |
 | `appraise` | 一篇论文被哪些院士 / 会士引用过、他们原话怎么说 | `target_key` | ✅ |
 
-所有域都支持 `fa ask`。law、talent、appraise 有各自专门的 agent；其余域共用一个通用 agent，它把问题翻成该域的过滤条件加关键词，所以只有数据库的域（cve、fr）也能问答。`cases` 用 law 的 agent。`standards` 只有目录元数据，它的 ask 会先说明答不了条文正文。
+除 `stocks` 外所有域都支持 `fa ask`。law、talent、appraise 有各自专门的 agent；其余域共用一个通用 agent，它把问题翻成该域的过滤条件加关键词，所以只有数据库的域（cve、fr）也能问答。`cases` 用 law 的 agent。`standards` 只有目录元数据，它的 ask 会先说明答不了条文正文。
 
 以上为实时列表的快照：`deepxiv fa domains` 显示当前的域和规模，`deepxiv fa spec <域>` 描述某个域。论文和网页不在这里，它们走 deepxiv 原生命令（`deepxiv search`、`paper`、`ask`）。
+
+### 美股（`stocks`）🆕
+
+给 agent 用的、带时点还原的美股数据：**8000+ 支股票**（8,198 支有日线行情），**每支股票的新闻**（2026-04-19 以来 390 万条，经 LLM 去重聚成约 92 万个事件，每个事件标注正负面），SEC 公告（8-K、10-Q、Form 4 等），按原始申报口径的 XBRL 财务，以及**宏观**：约 100 个序列（CPI、非农、美债收益率、汇率、原油、VIX 等），带历史版本和 nowcast 对比，外加每日市场与宏观简报。数据持续滚动入库，读到的是最新一个交易日。
+
+```bash
+deepxiv fa read stocks NVDA                                      # 最新价（对比行业 ETF 与 SPY）、近期事件、新闻、公告
+deepxiv fa read stocks NVDA -e news                              # 个股新闻流
+deepxiv fa read stocks NVDA -e financials                        # XBRL 财务（按原始申报口径）
+deepxiv fa read stocks NVDA -e prices                            # 日线（-p interval=1m 取 IEX 分钟线，仅重点股票）
+deepxiv fa read stocks NVDA -p as_of=2026-09-04                  # 回到过去某天的视图
+deepxiv fa search stocks "AI data center power" -F source=stocks # 一个主题涉及哪些股票
+deepxiv fa search stocks "chip export restrictions" -k 5         # 新闻 + 事件 + 公告混排
+deepxiv fa search stocks "earnings guidance" -F ticker=TSLA -F source=events
+deepxiv fa search stocks "*" -F source=filings -F ticker=NVDA    # '*' 按时间倒序列出
+deepxiv fa read stocks digest:macro                              # 当日宏观数据发布、利率、汇率、大宗商品
+deepxiv fa read stocks digest:market                             # 指数与板块涨跌
+deepxiv fa read stocks macro:CPIAUCSL                            # 单个宏观序列，含历史版本和 nowcast
+```
+
+- **`read` 的 ID**：股票代码（`AAPL`）、`macro:<序列>`（如 `macro:DGS10`）、`digest:market`、`digest:macro`，或命中里的任一条记录 id（`news:…`、`evt_…`、`filing:…`）。
+- **`source`** 决定 `search` 搜什么：`all`（默认，新闻、事件、公告混排，第一页还会给出最相关的几支股票）、`news`、`events`、`filings`、`stocks`（按主题或业务找股票）、`insiders`。
+- **extra**（`-e`）：`prices`、`financials`、`events`、`news`、`filings`、`insiders`、`features`，大多 1 credit，`features` 2 credit。`-l full` 现拼一份每条都带可引用 id 的简报（约 45 秒）。
+- **`as_of`** 回到任意时点：`read` 用 `-p as_of=…`，`search` 用 `-F as_of=…`。只返回那个时点已经可见的数据（行情在美东 16:00 收盘后可见，公告按受理时间，宏观按 ALFRED 版本），回测不会穿越。
+- **引用**：记录 id 原样引用（`px:…`、`evt_…`、`news:…`、`filing:…`、`fin:…`、`macro:…@版本`），并注明每条记录的 `license`。
+- **覆盖缺口**：新闻从 2026-04-19 开始；内部人交易（Form 4）历史 2026-10-23 才补齐，在那之前 `insiders` 为空不代表"没有内部人交易"；IEX 分钟线只覆盖重点股票、从 2026-10-16 开始；财务只覆盖提交 SEC XBRL 的公司（不含 ADR 和基金）；分析师信号来自新闻态度，没有券商数据源。
+- `stocks` 只提供数据，没有 `fa ask`。搜索、读取之后，由你的 agent 写分析。
 
 ## 3. 快速上手
 
@@ -299,7 +329,7 @@ deepxiv fa whoami [--json]
 ## 6. 读取：级别、extra、视图、章节、格式
 
 - **级别**（`--level`）是主要的调节旋钮。`brief` 是检索命中里的那张卡片；`detail` 满足大多数需求（talent 的默认值）；`full` 是全部内容，有长文的域给 markdown。越深越贵（talent：1 / 3 / 10）。有些域按 ID 类型区分级别。例如 `law` 的法条 ID（如 `…~38`）：`brief` 是卡片，`detail` 是原文 + 译文 + 抽取，`full` 是该条加前后条和所属章。详见 `spec --json` → `read.levels_by_id`。
-- **extra**（`--extra`）读文档的某一个侧面，单独计价。talent 的 extra：`papers`（代表作）、`network`（合作者、导师、学生）、`scholar`（Scholar 指标快照）、`scholar_live`（实时抓取，更贵）、`sources`（档案的参考来源）、`source`（某条来源的存档页，配 `-p n=<编号>`）。law 的 extra：`cases`（引用该法条的判决）。
+- **extra**（`--extra`）读文档的某一个侧面，单独计价。talent 的 extra：`papers`（代表作）、`network`（合作者、导师、学生）、`scholar`（Scholar 指标快照）、`scholar_live`（实时抓取，更贵）、`sources`（档案的参考来源）、`source`（某条来源的存档页，配 `-p n=<编号>`）。law 的 extra：`cases`（引用该法条的判决）。stocks 的 extra：`prices`、`financials`、`events`、`news`、`filings`、`insiders`、`features`。
 - **章节**：`--level full -p section=<名字>` 读长文档中的某一节。章节名见 `detail` 结果里的 `sections`（talent：`教育背景`、`工作履历`、`荣誉与奖项` 等）。
 - **视图**（`--view`）是底层的命名渲染（`spec --json` → `views`）。级别和 extra 都会映射到视图，一般不需要直接用 `--view`。
 - **格式**（`--format`）：`html` 在域列出时返回渲染好的网页（`spec --json` → `read.formats`；talent：`detail:html`），其余情况下仍返回 JSON。

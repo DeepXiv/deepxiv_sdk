@@ -2,7 +2,7 @@
 
 > **中文版**: [FA.zh.md](FA.zh.md) · Back to [README](README.md)
 
-DeepXiv works closely with [1stAuthor](https://1stauthor.com) to serve data beyond arXiv. `deepxiv fa` reaches 1stAuthor's domains (researchers, statutes, court judgments, clinical trials, drug labels, grants, filings, standards, vulnerabilities, the Federal Register) **with your deepxiv token**. Requests go through `data.rag.ac.cn/fa`, so you never need a separate 1stAuthor key.
+DeepXiv works closely with [1stAuthor](https://1stauthor.com) to serve data beyond arXiv. `deepxiv fa` reaches 1stAuthor's domains (researchers, **US stocks**, statutes, court judgments, clinical trials, drug labels, grants, filings, standards, vulnerabilities, the Federal Register) **with your deepxiv token**. Requests go through `data.rag.ac.cn/fa`, so you never need a separate 1stAuthor key.
 
 DeepXiv itself stays focused on agentic data services for academic papers, and will remain free. If you need higher limits on the 1stAuthor domains, see [1stauthor.com](https://1stauthor.com).
 
@@ -54,9 +54,11 @@ There are two kinds of token:
 
 | Domain | What's in it | ID field | `fa ask` |
 |---|---|---|---|
+| `stocks` 🆕 | **8,000+ US tickers: prices, per-ticker news and LLM-clustered events, SEC filings, XBRL financials, macro series and digests, all point-in-time** ([below](#us-stocks-stocks-)) | ticker / record id | — |
 | `talent` | ~190k AI researchers; ~160k researched profiles (education, career, representative papers, open source), with live Google Scholar metrics | `person_id` | ✅ |
 | `law` | ~33k statutes / 1.5M articles from 26 jurisdictions, searched article by article, with Chinese translations and per-article extraction | `law_id` | ✅ |
 | `us_law` | ~5M clause-level US provisions across 53 jurisdictions: statutes, regulations (CFR), session laws, agency decisions, guidance, court rules | `law_id` | ✅ |
+| `uk_eu_law` | ~52k UK and EU legal instruments (EUR-Lex regulations, directives, decisions; UK Acts and SIs) | `doc_id` | ✅ |
 | `cases` | Court judgments: ~17.5M from China and ~3.4M US opinions, with extracted structured fields | `uuid` | ✅ (law's agent) |
 | `trials` | Every study on ClinicalTrials.gov (~600k), with extracted eligibility, biomarkers, prior therapy and summaries | `nct_id` | ✅ |
 | `drugs` | ~256k US drug labels (openFDA SPL): indications, contraindications, interactions, boxed warnings | `set_id` | ✅ |
@@ -64,12 +66,40 @@ There are two kinds of token:
 | `filings` | ~1.2M US and Chinese corporate filings and regulatory documents (8-K, 10-K/20-F, periodic reports, enforcement) | `doc_id` | ✅ |
 | `standards` | ~79k Chinese national standards (GB / GB/T / GB/Z): catalogue metadata only, no full text | `std_code` | ✅ |
 | `cve` | ~384k public vulnerabilities (NVD), with CISA KEV and EPSS | `doc_id` | ✅ |
+| `osv` | ~200k open-source package advisories not in CVE, mostly malicious-package reports (npm, PyPI …) | `doc_id` | ✅ |
 | `fr` | ~1M Federal Register documents since 1994 | `doc_id` | ✅ |
 | `appraise` | Which academicians and society fellows cited a paper, and what they said about it | `target_key` | ✅ |
 
-Every domain supports `fa ask`. law, talent and appraise have their own agents. The others share one agent that turns the question into the domain's filters plus keywords, so it works even for domains backed only by a database (cve, fr). `cases` uses law's agent. `standards` holds catalogue metadata only, so its ask says up front that it can't quote clause text.
+Every domain except `stocks` supports `fa ask`. law, talent and appraise have their own agents. The others share one agent that turns the question into the domain's filters plus keywords, so it works even for domains backed only by a database (cve, fr). `cases` uses law's agent. `standards` holds catalogue metadata only, so its ask says up front that it can't quote clause text.
 
 The list is live: `deepxiv fa domains` shows the current domains and sizes, and `deepxiv fa spec <domain>` describes one domain. Papers and the web aren't here because deepxiv serves them natively (`deepxiv search`, `paper`, `ask`).
+
+### US stocks (`stocks`) 🆕
+
+Point-in-time US equity data for agents: **8,000+ tickers** (8,198 with daily prices), **per-ticker news** (3.9M stories since 2026-04-19, deduplicated and clustered by an LLM into ~920k events, each with a tone label), SEC filings (8-K, 10-Q, Form 4 …), XBRL financials as filed, and **macro**: ~100 series (CPI, payrolls, Treasury yields, FX, oil, VIX …) with vintages and nowcast comparisons, plus a daily market and macro digest. New data lands continuously, so a read reflects the latest session.
+
+```bash
+deepxiv fa read stocks NVDA                                      # price vs sector ETF and SPY, recent events, news, filings
+deepxiv fa read stocks NVDA -e news                              # the ticker's news feed
+deepxiv fa read stocks NVDA -e financials                        # XBRL financials, as filed
+deepxiv fa read stocks NVDA -e prices                            # daily bars (-p interval=1m: IEX minute bars, focus list only)
+deepxiv fa read stocks NVDA -p as_of=2026-09-04                  # the same view as of a past day
+deepxiv fa search stocks "AI data center power" -F source=stocks # which tickers a theme touches
+deepxiv fa search stocks "chip export restrictions" -k 5         # news + events + filings, ranked together
+deepxiv fa search stocks "earnings guidance" -F ticker=TSLA -F source=events
+deepxiv fa search stocks "*" -F source=filings -F ticker=NVDA    # '*' lists newest first
+deepxiv fa read stocks digest:macro                              # today's macro releases, rates, FX, commodities
+deepxiv fa read stocks digest:market                             # index and sector moves
+deepxiv fa read stocks macro:CPIAUCSL                            # one macro series with vintages and nowcast
+```
+
+- **IDs** for `read`: a ticker (`AAPL`), `macro:<series>` (e.g. `macro:DGS10`), `digest:market`, `digest:macro`, or any record id from a hit (`news:…`, `evt_…`, `filing:…`).
+- **`source`** picks what `search` looks through: `all` (default: news, events and filings ranked together; the first page also returns the top matching tickers), `news`, `events`, `filings`, `stocks` (find tickers by theme or business), `insiders`.
+- **Extras** (`-e`): `prices`, `financials`, `events`, `news`, `filings`, `insiders`, `features`. Most cost 1; `features` costs 2. `-l full` builds a digest where every item carries a citable id (~45 s).
+- **`as_of`** replays any moment: `-p as_of=…` on `read`, `-F as_of=…` on `search`. Only data visible at that time comes back (prices after the 16:00 ET close, filings from acceptance, macro by ALFRED vintage), so backtests don't see the future.
+- **Citing**: quote record ids as returned (`px:…`, `evt_…`, `news:…`, `filing:…`, `fin:…`, `macro:…@vintage`) and note each record's `license`.
+- **Coverage gaps**: news starts 2026-04-19; insider (Form 4) history arrives 2026-10-23, so an empty `insiders` list before then is not "no insider trading"; IEX minute bars cover a focus list from 2026-10-16; financials cover SEC XBRL filers only (no ADRs or funds); analyst signals come from news tone, not a broker feed.
+- `stocks` is data only: no `fa ask`. Search and read, then let your agent write the analysis.
 
 ## 3. Quick start
 
@@ -299,7 +329,7 @@ deepxiv fa whoami [--json]
 ## 6. Reading: levels, extras, views, sections, formats
 
 - **Levels** (`--level`) are the main dial. `brief` is the card shown in search hits. `detail` is what most callers need (talent's default). `full` is everything, as markdown where the domain has a long form. Prices rise with depth (talent: 1 / 3 / 10). Some domains define levels per ID type. For `law`, an article ID such as `…~38` reads as `brief` = card, `detail` = original text + translations + extraction, `full` = the article with its neighbours and chapter. `spec --json` → `read.levels_by_id` has the details.
-- **Extras** (`--extra`) are one facet of a document, priced separately. For talent: `papers` (representative papers), `network` (coauthors, advisors, students), `scholar` (Scholar metrics snapshot), `scholar_live` (fetched live; pricier), `sources` (the profile's reference list), `source` (an archived page, `-p n=<ref number>`). For law: `cases` (judgments citing the article).
+- **Extras** (`--extra`) are one facet of a document, priced separately. For talent: `papers` (representative papers), `network` (coauthors, advisors, students), `scholar` (Scholar metrics snapshot), `scholar_live` (fetched live; pricier), `sources` (the profile's reference list), `source` (an archived page, `-p n=<ref number>`). For law: `cases` (judgments citing the article). For stocks: `prices`, `financials`, `events`, `news`, `filings`, `insiders`, `features`.
 - **Sections**: `--level full -p section=<name>` reads one section of a long document. The names are in the `detail` read's `sections` list (talent: `教育背景`, `工作履历`, `荣誉与奖项`, …).
 - **Views** (`--view`) are the underlying named renderings (`spec --json` → `views`). Levels and extras map onto them, so you normally don't need `--view`.
 - **Formats** (`--format`): `html` returns a rendered page where the domain lists one (`spec --json` → `read.formats`; talent: `detail:html`). Elsewhere the response stays JSON.
