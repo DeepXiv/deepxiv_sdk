@@ -103,6 +103,8 @@ DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费*
 
 > 1stAuthor 目前处于纯内测阶段，任何问题欢迎[提 issue](https://github.com/DeepXiv/deepxiv_sdk/issues)。
 
+> **关于容量**：DeepXiv 的论文服务和 1stAuthor 的服务目前都部署在小服务器上，受资源和带宽限制，**总并发约 50 rps**，所有用户共享。欢迎 donate 支持服务运行；如果有大量调用需求，请私聊我们（`tommy[at]chien.io`）协商方案。
+
 ## 安装
 
 ```bash
@@ -234,4 +236,4 @@ people = reader.fa().search("talent", "speculative decoding", top_k=5)
 MIT —— 见 [LICENSE](LICENSE)。
 
 - 🐛 **问题反馈**: [github.com/DeepXiv/deepxiv_sdk/issues](https://github.com/DeepXiv/deepxiv_sdk/issues)
-- 📧 **更高额度**: 邮件 `tommy[at]chien.io` 说明用途
+- 📧 **更高额度、批量需求或 donate**: 邮件 `tommy[at]chien.io` 说明用途

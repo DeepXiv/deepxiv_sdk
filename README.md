@@ -103,6 +103,8 @@ DeepXiv itself stays focused on agentic data services for academic papers, and *
 
 > 1stAuthor is in closed beta. Questions or problems? [Open an issue](https://github.com/DeepXiv/deepxiv_sdk/issues).
 
+> **Capacity.** DeepXiv's paper service and the 1stAuthor services run on small servers. Compute and bandwidth are limited, so the whole service handles about **50 requests per second in total**, shared by every user. Donations to keep it running are very welcome. If you need large volumes, email `tommy[at]chien.io` and we'll work out a plan together.
+
 ## Install
 
 ```bash
@@ -234,4 +236,4 @@ If DeepXiv is useful in your work, please cite the technical report:
 MIT — see [LICENSE](LICENSE).
 
 - 🐛 **Issues**: [github.com/DeepXiv/deepxiv_sdk/issues](https://github.com/DeepXiv/deepxiv_sdk/issues)
-- 📧 **Higher limits**: email `tommy[at]chien.io` with your use case
+- 📧 **Higher limits, bulk use or donations**: email `tommy[at]chien.io` with your use case
