@@ -1,6 +1,6 @@
 ---
 name: deepxiv-cli
-version: "1.2.1"
+version: "1.2.2"
 description: Use the deepxiv CLI to search and read academic papers (arXiv, PMC, bioRxiv, medRxiv) section by section, get cited answers from papers or the web, and query 1stAuthor's domains with the same token — AI researchers and their profiles, which academicians and fellows cited a paper, Chinese and US statutes, court judgments, clinical trials, drug labels, research grants, company filings, Chinese national standards, CVEs and the US Federal Register. Use when a task needs papers, people, legal or regulatory text, trials, drugs, grants, filings, standards or vulnerabilities as evidence.
 frameworks: ["claude-code", "codex", "langchain", "custom-agents"]
 use_cases: ["literature-search", "paper-analysis", "talent-search", "citation-appraisal", "legal-research", "clinical-trials", "regulatory-research", "security-research"]
