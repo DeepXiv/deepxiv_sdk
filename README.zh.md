@@ -14,6 +14,9 @@
   <img src="./assets/deepxiv_cover.jpg" width="100%" alt="DeepXiv —— 致力于做最好的垂域 Agent 数据服务">
 </p>
 
+> [!IMPORTANT]
+> **容量提示：总并发约 50 rps，所有用户共享。** DeepXiv 的论文服务和 1stAuthor 的服务目前都部署在小服务器上，受资源和带宽限制。欢迎 donate 支持服务运行 🙏；如果有大量调用需求，请私聊我们（`tommy[at]chien.io`）协商方案。
+
 ---
 
 ## 这是什么
@@ -102,8 +105,6 @@ deepxiv fa ask "CoreWeave 最近一周为什么大跌？结合价格、新闻和
 DeepXiv 本身专注于学术论文的 agentic 数据服务，**将持续免费**。如需更大额度的 1stAuthor 相关服务，可以到 [1stauthor.com](https://1stauthor.com) 看看。
 
 > 1stAuthor 目前处于纯内测阶段，任何问题欢迎[提 issue](https://github.com/DeepXiv/deepxiv_sdk/issues)。
-
-> **关于容量**：DeepXiv 的论文服务和 1stAuthor 的服务目前都部署在小服务器上，受资源和带宽限制，**总并发约 50 rps**，所有用户共享。欢迎 donate 支持服务运行；如果有大量调用需求，请私聊我们（`tommy[at]chien.io`）协商方案。
 
 ## 安装
 
