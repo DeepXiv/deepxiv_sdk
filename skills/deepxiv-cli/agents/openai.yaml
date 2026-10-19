@@ -1,4 +1,4 @@
 version: 1
 display_name: DeepXiv CLI
-short_description: Search papers and read arXiv or PMC content with the local deepxiv CLI.
-default_prompt: Use the local deepxiv CLI to search papers, inspect paper metadata or sections, check the configured token, or run the optional deepxiv agent.
+short_description: Papers, cited answers, and 1stAuthor domains (researchers, fellow citations, law, judgments, trials, drugs, grants, filings, standards, CVEs) via the local deepxiv CLI.
+default_prompt: Use the local deepxiv CLI. For papers, search then read progressively (--brief, --head, --section) or use deepxiv ask for a cited answer. For people, citations by fellows, law, judgments, trials, drugs, grants, filings, standards, CVEs or the Federal Register, run deepxiv fa spec DOMAIN first, then deepxiv fa search / read / ask.
