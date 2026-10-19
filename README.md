@@ -14,6 +14,9 @@
   <img src="./assets/deepxiv_cover.jpg" width="100%" alt="DeepXiv — the best vertical-domain data service for agents">
 </p>
 
+> [!IMPORTANT]
+> **Capacity: about 50 requests per second, shared by everyone.** DeepXiv's paper service and the 1stAuthor services run on small servers with limited compute and bandwidth. Donations to keep it running are very welcome 🙏. If you need large volumes, email `tommy[at]chien.io` and we'll work out a plan together.
+
 ---
 
 ## What it is
@@ -102,8 +105,6 @@ deepxiv fa ask "CoreWeave 最近一周为什么大跌？结合价格、新闻和
 DeepXiv itself stays focused on agentic data services for academic papers, and **will remain free**. If you need higher limits on the 1stAuthor domains, see [1stauthor.com](https://1stauthor.com).
 
 > 1stAuthor is in closed beta. Questions or problems? [Open an issue](https://github.com/DeepXiv/deepxiv_sdk/issues).
-
-> **Capacity.** DeepXiv's paper service and the 1stAuthor services run on small servers. Compute and bandwidth are limited, so the whole service handles about **50 requests per second in total**, shared by every user. Donations to keep it running are very welcome. If you need large volumes, email `tommy[at]chien.io` and we'll work out a plan together.
 
 ## Install
 
