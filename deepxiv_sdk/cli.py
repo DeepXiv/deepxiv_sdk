@@ -654,7 +654,7 @@ def _print_ask_quota(quota, verbose=False):
         limit = quota.get("daily_limit")
         click.echo(
             f"\n🎟️  试用剩余 {remaining}/{limit} 次 · Free trial: {remaining} of {limit} asks left on this "
-            f"SDK token (lifetime). Register for 300/day: https://data.rag.ac.cn/register",
+            f"SDK token (lifetime). Register for a daily ask allowance: https://data.rag.ac.cn/register",
             err=True,
         )
     elif remaining <= 5:
@@ -1571,8 +1571,9 @@ def fa():
     Runs through data.rag.ac.cn/fa with your deepxiv token. search, read,
     facets and resolve spend your general daily limit at 1stAuthor's prices
     (`deepxiv fa spec <domain>` lists them); domains, spec and whoami are free.
-    ask spends the agentic quota: a registered account key (300/day), or
-    3 lifetime trial asks on the auto-registered SDK token.
+    With a registered key, search and read are fair use (60/min, 5 at once,
+    5,000/day) and ask draws on 1stAuthor's daily ask allowance, which resets
+    at 00:00 UTC. The auto-registered SDK token gets 3 lifetime trial asks.
 
     Data goes to stdout; quota, routing and sources go to stderr.
 
@@ -1610,7 +1611,7 @@ def _exit_on_fa_error(error):
     if error.needs_registered_key:
         # The server's detail says why: trial used up, today's trials all taken, or key not eligible.
         click.echo(f"\n❌ {error.message}\n", err=True)
-        click.echo(f"请到 {FA_REGISTER_URL} 注册（每天 300 次 ask），再用 `deepxiv config` 填入新 key。 / "
+        click.echo(f"请到 {FA_REGISTER_URL} 注册（注册用户有每日 AI 问答额度），再用 `deepxiv config` 填入新 key。 / "
                    f"Register at {FA_REGISTER_URL}, then save the key with `deepxiv config`.\n", err=True)
         click.echo("search / read / facets / resolve 仍可用当前 token。 / "
                    "search, read, facets and resolve still work with your current token.\n", err=True)
@@ -1618,12 +1619,13 @@ def _exit_on_fa_error(error):
         handle_auth_error()
     elif status == 429:
         if error.retry_after is not None:
-            click.echo(f"\n❌ Too many concurrent requests: {error.message}", err=True)
-            click.echo(f"   Retry in {error.retry_after:g}s (ask allows 4 at once per key).\n", err=True)
+            # Rate limit (60/min, 5 at once) or an allowance that resets later: the server says when.
+            click.echo(f"\n❌ {error.message}", err=True)
+            click.echo(f"   请 {error.retry_after:g} 秒后重试。 / Retry in {error.retry_after:g}s.\n", err=True)
         elif error.code:
-            # fa-api's own per-user throttle, passed through as {"error": {...}}.
-            click.echo(f"\n❌ Rate-limited by 1stAuthor: {error.message}", err=True)
-            click.echo("   Slow down and retry in a minute.\n", err=True)
+            # fa-api's own per-user throttle or daily allowance, passed through as {"error": {...}}.
+            click.echo(f"\n❌ {error.message}", err=True)
+            click.echo("   放慢速度再试；每日额度在 UTC 0 点重置。 / Slow down and retry; daily allowances reset at 00:00 UTC.\n", err=True)
         else:
             click.echo(f"\n❌ {error.message}", err=True)
             handle_rate_limit_error()
@@ -2028,9 +2030,10 @@ def _print_fa_sources(sources):
 def fa_ask(query, domain, effort, no_stream, no_sources, params, verbose, token, json_output):
     """Ask a question over a 1stAuthor domain and get a cited answer.
 
-    Spends the agentic quota shared with `deepxiv ask` (300/day on a
-    registered key from https://data.rag.ac.cn/register). The auto-registered
-    SDK token gets 3 lifetime trial asks. Without --domain,
+    Draws on 1stAuthor's daily ask allowance with a registered key from
+    https://data.rag.ac.cn/register (resets at 00:00 UTC; a site-wide daily
+    total can run out early at peak times). The auto-registered SDK token gets
+    3 lifetime trial asks. Without --domain,
     1stAuthor picks the domain and says which one on stderr.
 
     The answer goes to stdout; route, sources and quota go to stderr.
@@ -2153,7 +2156,7 @@ def fa_whoami(token, json_output):
     if agent_quota and agent_quota.get("tier") == "trial":
         click.echo(f"agentic: free trial, {agent_quota.get('used')}/{agent_quota.get('trial_limit')} used, "
                    f"{agent_quota.get('remaining')} left (lifetime, this SDK token) — "
-                   f"register for 300/day at {FA_REGISTER_URL}")
+                   f"register for a daily ask allowance at {FA_REGISTER_URL}")
         if result.get("agent_note"):
             click.echo(f"         {result['agent_note']}")
     elif agent_quota:

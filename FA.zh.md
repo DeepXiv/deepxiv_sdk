@@ -252,7 +252,7 @@ deepxiv fa resolve "Geoffrey Hinton" "Yann LeCun" "Yoshua Bengio"
 deepxiv fa ask QUESTION [-d DOMAIN] [-e EFFORT] [-p k=v]... [--no-stream] [--no-sources] [-v] [--json]
 ```
 
-带引用的回答：agent 替你检索并阅读该域。**需要注册 key**（每天免费 300 次）。自动注册的 SDK token 有 **3 次终身试用**，stderr 会显示 `🎟️ 试用剩余 2/3 次`；用完后返回 403，并原样显示服务端的说明。
+带引用的回答：agent 替你检索并阅读该域。**需要注册 key**，消耗 1stAuthor 的**每日 AI 问答额度**（UTC 0 点重置；全站也有每日总量，高峰时可能提前用完）。自动注册的 SDK token 有 **3 次终身试用**，stderr 会显示 `🎟️ 试用剩余 2/3 次`；用完后返回 403，并原样显示服务端的说明。
 
 | 选项 | |
 |---|---|
@@ -360,15 +360,15 @@ deepxiv fa search talent "Geoffrey Hinton" --json | jq '.hits[0].id'
 | 调用 | 扣哪个池 | 价格 |
 |---|---|---|
 | `domains`、`spec`、`whoami` | — | 免费 |
-| `search` | 通用 daily limit | 2（`--head` 为 3） |
-| `read` | 通用 daily limit | 按级别 / extra / format 计，全部价格见 `spec`（talent：brief 1、detail 3、full 10，extra 1–20） |
+| `search` | 注册 key：合理使用；SDK token：通用 daily limit | 2（`--head` 为 3） |
+| `read` | 注册 key：合理使用；SDK token：通用 daily limit | 按级别 / extra / format 计，全部价格见 `spec`（talent：brief 1、detail 3、full 10，extra 1–20） |
 | `facets` | 通用 daily limit | 1 |
 | `resolve` | 通用 daily limit | 2 |
-| `ask` | agentic 配额（与 `deepxiv ask` 共用） | 每次 1 次，与域和 effort 无关；注册 key 每天 300 次，SDK token 终身试用 3 次 |
+| `ask` | 注册 key：1stAuthor 的每日 AI 问答额度；SDK token：终身试用 3 次 | — |
 
-- 通用 daily limit：自动注册的 token 为 1,000，注册 key 为 10,000。注册 key 另有每天 300 次免费 agentic 调用。见 [USAGE.zh.md § Token 与额度](USAGE.zh.md#token-与额度)。
+- 内测期间，注册 key 通过 `deepxiv fa` 使用 1stAuthor，和 1stAuthor 自己的用户同等待遇：`fa search` / `read` 合理使用，按速率限制（每分钟 60 次、同时 5 个、每天 5,000 次），不扣 deepxiv 的 daily limit，`talent` 另有每日读取上限；`fa ask` 消耗每日 AI 问答额度，UTC 0 点重置，用完会提示「今日 AI 问答额度已用完」，全站每日总量在高峰时也可能提前用完。
+- 自动注册的 token 调 `fa` 时扣通用 daily limit（1,000），按上表价格计。`deepxiv ask`（论文问答）照旧：注册 key 每天 300 次。见 [USAGE.zh.md § Token 与额度](USAGE.zh.md#token-与额度)。
 - 每次付费调用后，CLI 会在 stderr 打出 `💳 cost N · 剩余/上限`，剩余不足 20 时会提醒。
-- `fa ask` 在 agentic 配额剩余不足 5 次时提醒（`-v` 时总会显示）。
 - 每个 key 最多**同时跑 4 个 `ask`**。
 - 1stAuthor 的免费样例查询和 ID（`spec` → `free_samples`）不扣费。
 - 需要更大额度的 1stAuthor 服务，请看 [1stauthor.com](https://1stauthor.com)。
@@ -381,9 +381,9 @@ deepxiv fa search talent "Geoffrey Hinton" --json | jq '.hits[0].id'
 |---|---|---|
 | `fa ask` 返回 403 并显示服务端说明（试用已用完 / 今日试用名额已满 / key 不符合条件） | SDK token 的 3 次试用已用完，或全站当日试用总量已满 | 注册后执行 `deepxiv config --token …` |
 | 认证失败（401） | token 缺失或无效 | `deepxiv token` 查看，或设置 `DEEPXIV_TOKEN` |
+| 今日 AI 问答额度已用完 | 每日 AI 问答额度用完，或高峰时全站每日总量用完 | 等 UTC 0 点重置 |
 | 已到日使用上限 | 429：通用 daily limit 用完 | 等明天，或注册以提高额度 |
-| Too many concurrent requests, retry in Ns | 带 `Retry-After` 的 429：同时超过 4 个 `ask` | 按提示等待 |
-| Rate-limited by 1stAuthor | 429：1stAuthor 的按用户限流 | 放慢速度 |
+| 429，提示「请 N 秒后重试」 | 超过速率限制：`fa search` / `read` 每分钟 60 次或同时 5 个，或同时跑的 `ask` 太多 | 按 `Retry-After` 的秒数退避 |
 | `HTTP 400 invalid_request: …` 加一个列表 | extra、级别、视图或过滤条件写错 | 从错误下方列出的可选值中选 |
 | `HTTP 404 …` | 没有这个 ID 的文档 | 从 `search` / `resolve` 取 ID |
 | 答案输出一半后出现 `❌ <code>: <message> (quota refunded)` | `ask` 的 agent 在流中途失败 | 重试；提示里写了 refunded 就说明配额已退还 |

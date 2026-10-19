@@ -22,7 +22,8 @@ deepxiv token                       # shows the active token
 
 - **Token**: the first call auto-registers a free token and saves it to `~/.env`
   (`DEEPXIV_TOKEN`). Every command also takes `-t TOKEN`.
-- **Registered key**: the agentic calls need one (300/day free). On the
+- **Registered key**: the agentic calls need one (`deepxiv ask`: 300/day;
+  `deepxiv fa ask`: a daily ask allowance, reset at 00:00 UTC). On the
   auto-registered token, `deepxiv ask` returns **403**; `deepxiv fa ask` works
   **3 times in total** (stderr: `🎟️ 试用剩余 N/3 次 · Free trial: N of 3 asks left`),
   then returns 403. Tell the user to register at https://data.rag.ac.cn/register
@@ -263,14 +264,16 @@ citation. Answers are research aids, not legal advice; say so.
 
 ## 8. Cost and limits
 
-- `fa` search/read/facets/resolve draw on the general daily limit at the prices
-  in `fa spec` (search 2; read 1–10 by level; extras 1–20). Free samples in the
-  spec cost 0. Read `brief` first and go deeper only for what you will use.
-- `ask` and `fa ask` use the separate agentic pool: 1 per question, 300/day on a
-  free registered account, regardless of effort.
-- On **429**: daily limit (wait, or the user asks for more), or concurrency
-  (the CLI retries once after `Retry-After`); keep parallelism ≤ 4 per key for
-  `fa` and ≤ 8 for `paper --brief`.
+- With a registered key, `fa` search/read/facets/resolve are fair use,
+  rate-limited to 60/min, 5 at once and 5,000/day. On the auto-registered token
+  they draw on the general daily limit at the prices in `fa spec`. Either way,
+  read `brief` first and go deeper only for what you will use.
+- `fa ask` draws on 1stAuthor's **daily ask allowance** (resets 00:00 UTC; a
+  site-wide daily total can run out early at peak times). "今日 AI 问答额度已用完"
+  means it is spent for today: stop asking and work from search/read.
+- `deepxiv ask` (papers) keeps its own pool: 300/day on a registered key.
+- On **429**: back off for `Retry-After` seconds. Keep parallelism ≤ 5 per key
+  for `fa` and ≤ 8 for `paper --brief`.
 
 ## 9. Errors
 

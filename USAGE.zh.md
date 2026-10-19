@@ -28,13 +28,13 @@ reader = Reader(token=os.environ["DEEPXIV_TOKEN"])
 
 deepxiv 依次从 `--token`、`DEEPXIV_TOKEN`、`~/.env` 解析 token，首次使用会自动注册一个。
 
-| | 通用 daily limit | Agentic 调用（`ask`、`fa ask`） | 获取方式 |
+| | 通用 daily limit | Agentic 调用（`ask`；`fa ask` 见下） | 获取方式 |
 |---|---|---|---|
 | 自动注册 | 1,000 请求 | ❌ 不可用 | 首次使用 CLI 时自动完成 |
 | 注册用户 | 10,000 请求 | ✅ 300 次/天 | [data.rag.ac.cn/register](https://data.rag.ac.cn/register) |
 | 自定义 | 联系我们 | 联系我们 | 邮件 `tommy[at]chien.io` |
 
-两份额度相互独立：agentic 调用不消耗通用额度，反之亦然。找回 key：[data.rag.ac.cn/token-lookup](https://data.rag.ac.cn/token-lookup)（支持 Google 注册，方便没有中国手机号的用户）。
+两份额度相互独立：agentic 调用不消耗通用额度，反之亦然。`deepxiv fa` 对注册 key 另有规则：`fa ask` 用每日 AI 问答额度，`fa search` / `read` 合理使用，见 [FA.zh.md § 计费与配额](FA.zh.md#8-计费与配额)。找回 key：[data.rag.ac.cn/token-lookup](https://data.rag.ac.cn/token-lookup)（支持 Google 注册，方便没有中国手机号的用户）。
 
 免费测试论文（无需 token）—— arXiv：`2409.05591`、`2504.21776`；PMC：`PMC544940`。
 

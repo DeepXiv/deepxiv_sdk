@@ -114,13 +114,21 @@ pip install deepxiv-sdk
 
 `deepxiv fa` (1stAuthor domains, including talent) needs 1.2.0 or later: `pip install -U deepxiv-sdk`.
 
-`deepxiv` auto-registers a token on first use. Agentic commands (`ask`, `fa ask`) need a registered key (300 calls/day free); the auto-registered token gets 3 lifetime trial `fa ask` calls. Get a key at [data.rag.ac.cn/register](https://data.rag.ac.cn/register), then:
+`deepxiv` auto-registers a token on first use. Agentic commands (`ask`, `fa ask`) need a registered key; the auto-registered token gets 3 lifetime trial `fa ask` calls. Get a key at [data.rag.ac.cn/register](https://data.rag.ac.cn/register), then:
 
 ```bash
 deepxiv config --token YOUR_REGISTERED_KEY
 ```
 
-Every account gets 300 agentic calls/day free, on a pool separate from the general daily limit.
+During the beta, a registered key uses the 1stAuthor domains on the same terms as 1stAuthor's own users:
+
+- **`deepxiv fa ask`** draws on a **daily ask allowance** that resets at 00:00 UTC. When it runs out, you'll see "今日 AI 问答额度已用完" (today's ask allowance is used up). There is also a site-wide daily total, which can run out early at peak times.
+- **`deepxiv fa search` / `read`** are fair use, rate-limited to 60 requests a minute, 5 at once and 5,000 a day.
+- **`talent`** also has a daily read limit on profile content (search and cards aren't capped).
+- **The auto-registered token** stays as it is: 3 lifetime trial `fa ask` calls, then a prompt to register at [data.rag.ac.cn/register](https://data.rag.ac.cn/register).
+- **On a 429**, back off for the number of seconds in `Retry-After`.
+
+`deepxiv ask` (papers) is DeepXiv's own and unchanged: 300 calls/day on a registered key, on a pool separate from the general daily limit.
 
 ## Usage
 
