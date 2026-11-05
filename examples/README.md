@@ -18,7 +18,7 @@ This directory contains example scripts demonstrating how to use deepxiv-sdk.
   - Simple queries
   - Follow-up questions with context
   - Detailed paper analysis
-  - Using different LLM providers (OpenAI, DeepSeek, OpenRouter, Requesty)
+  - Using different LLM providers (OpenAI, DeepSeek, OpenRouter, Requesty, Opper)
 
 ## Advanced Examples
 
@@ -63,7 +63,7 @@ python examples/example_advanced.py
 All examples can be customized by:
 - Changing the model (e.g., "gpt-4", "gpt-3.5-turbo", "deepseek-chat")
 - Adjusting parameters (temperature, max_tokens, max_llm_calls)
-- Using different LLM providers (OpenAI, DeepSeek, OpenRouter, Requesty, etc.)
+- Using different LLM providers (OpenAI, DeepSeek, OpenRouter, Requesty, Opper, etc.)
 - Modifying the queries to suit your research needs
 
 ## Tips
