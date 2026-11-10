@@ -638,6 +638,13 @@ agent = Agent(
     model="openai/gpt-4o-mini"
 )
 
+# UberLLM
+agent = Agent(
+    api_key="your_uberllm_key",
+    base_url="https://api.uberllm.dev/v1",
+    model="deepseek/deepseek-v4.1-flash"
+)
+
 # Local Ollama
 agent = Agent(
     api_key="ollama",  # dummy key
