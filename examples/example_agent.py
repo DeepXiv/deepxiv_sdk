@@ -52,6 +52,15 @@ def main():
     #     print_process=True
     # )
     
+    # Option 5: UberLLM (uncomment to use)
+    # agent = Agent(
+    #     api_key=os.getenv("UBERLLM_API_KEY"),
+    #     model="deepseek/deepseek-v4.1-flash",
+    #     base_url="https://api.uberllm.dev/v1",
+    #     reader=reader,
+    #     print_process=True
+    # )
+    
     print("\n" + "=" * 80)
     print("Example 1: Search and analyze papers on a topic")
     print("=" * 80)
