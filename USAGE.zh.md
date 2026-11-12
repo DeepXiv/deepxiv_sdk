@@ -631,6 +631,13 @@ agent = Agent(
     model="openai/gpt-4o-mini"
 )
 
+# Opper
+agent = Agent(
+    api_key="your_opper_key",
+    base_url="https://api.opper.ai/v3/compat",
+    model="gpt-4o-mini"
+)
+
 # 本地 Ollama
 agent = Agent(
     api_key="ollama",  # dummy key
